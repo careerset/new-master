@@ -1006,52 +1006,10 @@ function HrDashboard() {
                                 </div>
                             )}
                             {detailTab === 'admin' && (
-                                <div className="profile-section" style={{ border: '2px dashed #fecaca', padding: '25px', borderRadius: '16px', background: '#fffafb' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                                        <h3 style={{ margin: 0, color: '#991b1b' }}>Admin Management</h3>
-                                    </div>
-                                    <p style={{ fontSize: '14px', color: '#7f1d1d', marginBottom: '25px', opacity: 0.8 }}>Use these controls to manually override employee status. Changes are saved instantly to the master records.</p>
-
-                                    <div className="profile-grid">
-                                        <div className="info-item">
-                                            <label>Current Employment Status</label>
-                                            <select
-                                                defaultValue={selectedEmployee.Status || "Active"}
-                                                onChange={(e) => selectedEmployee._tempStatus = e.target.value}
-                                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
-                                            >
-                                                <option value="Active">Active</option>
-                                                <option value="Inactive">Inactive</option>
-                                            </select>
-                                        </div>
-                                        <div className="info-item">
-                                            <label>Employment Type</label>
-                                            <select
-                                                defaultValue={selectedEmployee.EmploymentType || (new Date(selectedEmployee.DateOfJoining || selectedEmployee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent")}
-                                                onChange={(e) => selectedEmployee._tempType = e.target.value}
-                                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
-                                            >
-                                                <option value="Probation">Probation</option>
-                                                <option value="Permanent">Permanent</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
-                                        <button
-                                            className="btn-next"
-                                            style={{ background: '#ef4444', width: 'auto', padding: '12px 30px' }}
-                                            onClick={() => {
-                                                const status = selectedEmployee._tempStatus || selectedEmployee.Status || "Active";
-                                                const type = selectedEmployee._tempType || selectedEmployee.EmploymentType || (new Date(selectedEmployee.DateOfJoining || selectedEmployee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent");
-                                                handleUpdateStatus(selectedEmployee.EmpID, { Status: status, EmploymentType: type });
-                                            }}
-                                        >
-                                            Apply Changes
-                                        </button>
-                                    </div>
-                                </div>
+                                <AdminActionsContent 
+                                    employee={selectedEmployee} 
+                                    onUpdate={(fields) => handleUpdateStatus(selectedEmployee.EmpID, fields)} 
+                                />
                             )}
                         </div>
 
@@ -1075,6 +1033,56 @@ function HrDashboard() {
 
             {/* Print Section (Hidden on screen, visible on print) */}
             {selectedEmployee && <PrintProfile employee={selectedEmployee} />}
+        </div>
+    );
+}
+
+function AdminActionsContent({ employee, onUpdate }) {
+    const [status, setStatus] = useState(employee.Status || "Active");
+    const [type, setType] = useState(employee.EmploymentType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
+
+    return (
+        <div className="profile-section" style={{ border: '2px dashed #fecaca', padding: '25px', borderRadius: '16px', background: '#fffafb' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                <h3 style={{ margin: 0, color: '#991b1b' }}>Admin Management</h3>
+            </div>
+            <p style={{ fontSize: '14px', color: '#7f1d1d', marginBottom: '25px', opacity: 0.8 }}>Use these controls to manually override employee status. Changes are saved instantly to the master records.</p>
+
+            <div className="profile-grid">
+                <div className="info-item">
+                    <label>Current Employment Status</label>
+                    <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
+                    >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+                <div className="info-item">
+                    <label>Employment Type</label>
+                    <select
+                        value={type}
+                        onChange={(e) => setType(e.target.value)}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
+                    >
+                        <option value="Probation">Probation</option>
+                        <option value="Permanent">Permanent</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                    className="hr-btn-icon"
+                    style={{ background: '#ef4444', width: 'auto', padding: '12px 30px' }}
+                    onClick={() => onUpdate({ Status: status, EmploymentType: type })}
+                >
+                    Apply Changes
+                </button>
+            </div>
         </div>
     );
 }
