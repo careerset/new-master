@@ -123,8 +123,6 @@
     justify-content: center;
     background-color: #f8fafc;
     border-right: 1px solid var(--border-color);
-    background-image: url("/employee.jpg");
-
 }
 
 .login-welcome h1 {

@@ -29,7 +29,7 @@ function SuperUserLogin() {
       <div className="login-wrapper">
 
         {/* Left Section */}
-        <div className="login-welcome">
+        <div className="login-welcome" style={{ backgroundImage: "url('/employee.jpg')", backgroundSize: "cover", backgroundPosition: "center" }}>
           <h1>Welcome!</h1>
           <div className="welcome-line"></div>
           <p>

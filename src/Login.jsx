@@ -202,7 +202,7 @@ function EmployeeLogin() {
   return (
     <div className="login-container">
       <div className="login-wrapper">
-        <div className="login-welcome">
+        <div className="login-welcome" style={{ backgroundImage: "url('/employee.jpg')", backgroundSize: "cover", backgroundPosition: "center" }}>
           {!isForgotMode ? (
             <>
               <h1>Employee portal</h1>
