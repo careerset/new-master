@@ -1,0 +1,36 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Login from './Login';
+import Signup from './Signup';
+import HrLogin from './HrLogin';
+import ManagerLogin from './ManagerLogin';
+import AdminLogin from './AdminLogin';
+import EmployeeDashboard from './EmployeeDashboard';
+import EmployeeForm from './EmployeeForm';
+import HrDashboard from './Hrdashboard';
+import ManagerDashboard from './ManagerDashboard';
+import AdminDashboard from './AdminDashboard';
+
+
+function App() {
+    return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+        <Route path="/employee-form" element={<EmployeeForm />} />
+        <Route path="/hr-dashboard" element={<HrDashboard />} />
+        <Route path="/hr-login" element={<HrLogin />} />
+        <Route path="/manager-login" element={<ManagerLogin />} />
+        <Route path="/manager-dashboard" element={<ManagerDashboard />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+      </Routes>
+    </Router>
+  );
+}
+
+
+
+export default App;
