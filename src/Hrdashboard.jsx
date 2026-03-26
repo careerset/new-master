@@ -30,6 +30,7 @@ const normalizeDept = (dept) => {
 function AdminActionsContent({ employee, onUpdate }) {
     const [status, setStatus] = useState(employee.Status || "Active");
     const [type, setType] = useState(employee.EmploymentType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
+    const [category, setCategory] = useState(employee.EmploymentCategory || "Regular");
 
     return (
         <div className="profile-section" style={{ border: '2px dashed #fecaca', padding: '25px', borderRadius: '16px', background: '#fffafb' }}>
@@ -49,17 +50,35 @@ function AdminActionsContent({ employee, onUpdate }) {
                     >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
+                        <option value="PIP">PIP</option>
+                        <option value="Inactive Suspend">Inactive Suspend</option>
+                        <option value="Abscond">Abscond</option>
                     </select>
                 </div>
                 <div className="info-item">
-                    <label>Employment Type</label>
+                    <label>Confirmation Status</label>
                     <select
                         value={type}
                         onChange={(e) => setType(e.target.value)}
                         style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
                     >
                         <option value="Probation">Probation</option>
-                        <option value="Permanent">Permanent</option>
+                        <option value="Permanent">Confirmed</option>
+                    </select>
+                </div>
+                <div className="info-item">
+                    <label>Employment Type</label>
+                    <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
+                    >
+                        <option value="Regular">Regular</option>
+                        <option value="Intern">Intern</option>
+                        <option value="Contract">Contract</option>
+                        <option value="Training">Training</option>
+                        <option value="Consultant">Consultant</option>
+                        <option value="Other">Other</option>
                     </select>
                 </div>
             </div>
@@ -68,7 +87,7 @@ function AdminActionsContent({ employee, onUpdate }) {
                 <button
                     className="hr-btn-icon"
                     style={{ background: '#ef4444', width: 'auto', padding: '12px 30px' }}
-                    onClick={() => onUpdate({ Status: status, EmploymentType: type })}
+                    onClick={() => onUpdate({ Status: status, EmploymentType: type, EmploymentCategory: category })}
                 >
                     Apply Changes
                 </button>
@@ -87,6 +106,7 @@ function HrDashboard() {
     const [filterGender, setFilterGender] = useState("All");
     const [filterStatus, setFilterStatus] = useState("All");
     const [filterEmploymentType, setFilterEmploymentType] = useState("All");
+    const [filterEmploymentCategory, setFilterEmploymentCategory] = useState("All");
     const [detailTab, setDetailTab] = useState("personal");
     const [sortBy, setSortBy] = useState("name");
     const [uniqueDepts, setUniqueDepts] = useState([]);
@@ -238,9 +258,12 @@ function HrDashboard() {
             const matchesDept = filterDept === "All" || (emp.Department || emp.department) === filterDept;
             const matchesGender = filterGender === "All" || (emp.Gender || emp.gender)?.toLowerCase() === filterGender.toLowerCase();
             const empStatus = emp.Status || emp.status;
-            const matchesStatus = filterStatus === "All" ||
-                (filterStatus === "Active" && (!empStatus || empStatus.toLowerCase() === "active")) ||
-                (filterStatus === "Inactive" && empStatus?.toLowerCase() === "inactive");
+            const matchesStatus = (filterStatus === "All") ||
+                (filterStatus === "Active" && (!empStatus || empStatus.toLowerCase() === 'active')) ||
+                (filterStatus === "Inactive" && empStatus?.toLowerCase() === 'inactive') ||
+                (filterStatus === "PIP" && empStatus?.toLowerCase() === 'pip') ||
+                (filterStatus === "Inactive Suspend" && empStatus?.toLowerCase() === 'inactive suspend') ||
+                (filterStatus === "Abscond" && empStatus?.toLowerCase() === 'abscond');
 
             const empEmploymentType = emp.EmploymentType || emp.employmentType;
             const matchesEmployment = filterEmploymentType === "All" || (() => {
@@ -253,7 +276,9 @@ function HrDashboard() {
                 return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Permanent" && !isProbation);
             })();
 
-            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesEmployment;
+            const matchesCategory = filterEmploymentCategory === "All" || (emp.EmploymentCategory === filterEmploymentCategory);
+
+            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesEmployment && matchesCategory;
         })
         .sort((a, b) => {
             if (sortBy === "name") return (a.Name || "").localeCompare(b.Name || "");
@@ -347,14 +372,14 @@ function HrDashboard() {
                             />
                             <StatCardV2
                                 label="Active Employees"
-                                value={employees.filter(e => !e.Status || e.Status?.toLowerCase() === 'active').length}
+                                value={employees.filter(e => !e.Status || ['active', 'pip'].includes(e.Status?.toLowerCase())).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>}
                                 color="#10b981"
                                 onClick={() => { setActiveTab('employees'); setFilterStatus('Active'); setFilterEmploymentType('All'); }}
                             />
                             <StatCardV2
                                 label="Inactive Employees"
-                                value={employees.filter(e => e.Status?.toLowerCase() === 'inactive').length}
+                                value={employees.filter(e => ['inactive', 'inactive suspend', 'abscond'].includes(e.Status?.toLowerCase())).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>}
                                 color="#64748b"
                                 onClick={() => { setActiveTab('employees'); setFilterStatus('Inactive'); setFilterEmploymentType('All'); }}
@@ -414,8 +439,8 @@ function HrDashboard() {
                                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0284c7' }}>{employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'male').length}</span>
                                         </div>
                                         <div className="dept-bar-bg" style={{ height: '8px' }}>
-                                            <div className="dept-bar-fill" style={{ 
-                                                width: `${(employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'male').length / (employees.length || 1)) * 100}%`, 
+                                            <div className="dept-bar-fill" style={{
+                                                width: `${(employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'male').length / (employees.length || 1)) * 100}%`,
                                                 background: '#0284c7',
                                                 height: '100%',
                                                 borderRadius: '4px'
@@ -428,8 +453,8 @@ function HrDashboard() {
                                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#db2777' }}>{employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'female').length}</span>
                                         </div>
                                         <div className="dept-bar-bg" style={{ height: '8px' }}>
-                                            <div className="dept-bar-fill" style={{ 
-                                                width: `${(employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'female').length / (employees.length || 1)) * 100}%`, 
+                                            <div className="dept-bar-fill" style={{
+                                                width: `${(employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'female').length / (employees.length || 1)) * 100}%`,
                                                 background: '#db2777',
                                                 height: '100%',
                                                 borderRadius: '4px'
@@ -445,11 +470,11 @@ function HrDashboard() {
                                             }).length}</span>
                                         </div>
                                         <div className="dept-bar-bg" style={{ height: '8px' }}>
-                                            <div className="dept-bar-fill" style={{ 
+                                            <div className="dept-bar-fill" style={{
                                                 width: `${(employees.filter(e => {
                                                     const g = (e.Gender || e.gender)?.toLowerCase();
                                                     return g && g !== 'male' && g !== 'female';
-                                                }).length / (employees.length || 1)) * 100}%`, 
+                                                }).length / (employees.length || 1)) * 100}%`,
                                                 background: '#6366f1',
                                                 height: '100%',
                                                 borderRadius: '4px'
@@ -468,8 +493,8 @@ function HrDashboard() {
                                 <div className="gender-dist-container" style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px 0' }}>
                                     {(() => {
                                         const total = employees.length || 1;
-                                        const activeCount = employees.filter(e => e.Status?.toLowerCase() === 'active' || !e.Status).length;
-                                        const inactiveCount = employees.filter(e => e.Status?.toLowerCase() === 'inactive').length;
+                                        const activeCount = employees.filter(e => !e.Status || ['active', 'pip'].includes(e.Status?.toLowerCase())).length;
+                                        const inactiveCount = employees.filter(e => ['inactive', 'inactive suspend', 'abscond'].includes(e.Status?.toLowerCase())).length;
                                         const probCount = employees.filter(e => {
                                             if (e.EmploymentType?.toLowerCase() === 'probation') return true;
                                             if (e.EmploymentType) return false;
@@ -497,8 +522,8 @@ function HrDashboard() {
                                                         </span>
                                                     </div>
                                                     <div className="dept-bar-bg" style={{ height: '8px', display: 'flex', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                                                        <div style={{ width: `${(probCount/total)*100}%`, background: '#f59e0b', height: '100%' }} title="Probation"></div>
-                                                        <div style={{ width: `${(permCount/total)*100}%`, background: '#8b5cf6', height: '100%' }} title="Permanent"></div>
+                                                        <div style={{ width: `${(probCount / total) * 100}%`, background: '#f59e0b', height: '100%' }} title="Probation"></div>
+                                                        <div style={{ width: `${(permCount / total) * 100}%`, background: '#8b5cf6', height: '100%' }} title="Permanent"></div>
                                                     </div>
                                                 </div>
                                                 <div className="comp-item">
@@ -509,8 +534,8 @@ function HrDashboard() {
                                                         </span>
                                                     </div>
                                                     <div className="dept-bar-bg" style={{ height: '8px', display: 'flex', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                                                        <div style={{ width: `${(activeCount/total)*100}%`, background: '#10b981', height: '100%' }} title="Active"></div>
-                                                        <div style={{ width: `${(inactiveCount/total)*100}%`, background: '#64748b', height: '100%' }} title="Inactive"></div>
+                                                        <div style={{ width: `${(activeCount / total) * 100}%`, background: '#10b981', height: '100%' }} title="Active"></div>
+                                                        <div style={{ width: `${(inactiveCount / total) * 100}%`, background: '#64748b', height: '100%' }} title="Inactive"></div>
                                                     </div>
                                                 </div>
                                             </>
@@ -674,16 +699,31 @@ function HrDashboard() {
                                 <label>Status</label>
                                 <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                                     <option value="All">All Status</option>
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
+                                    <option value="Active">Active Only</option>
+                                    <option value="Inactive">Inactive Only</option>
+                                    <option value="PIP">PIP</option>
+                                    <option value="Inactive Suspend">Inactive Suspend</option>
+                                    <option value="Abscond">Abscond</option>
                                 </select>
                             </div>
                             <div className="filter-group">
-                                <label>Employment</label>
+                                <label>Confirmation Status</label>
                                 <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
                                     <option value="All">All Types</option>
-                                    <option value="Permanent">Permanent</option>
+                                    <option value="Permanent">Confirmed</option>
                                     <option value="Probation">Probation</option>
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>Employment Type</label>
+                                <select value={filterEmploymentCategory} onChange={(e) => setFilterEmploymentCategory(e.target.value)}>
+                                    <option value="All">All Types</option>
+                                    <option value="Regular">Regular</option>
+                                    <option value="Intern">Intern</option>
+                                    <option value="Contract">Contract</option>
+                                    <option value="Training">Training</option>
+                                    <option value="Consultant">Consultant</option>
+                                    <option value="Other">Other</option>
                                 </select>
                             </div>
                             <div className="filter-group">
@@ -803,6 +843,7 @@ function HrDashboard() {
                                         <div className="profile-grid">
                                             <InfoItem label="Designation" value={selectedEmployee.Designation || selectedEmployee.designation} />
                                             <InfoItem label="Department" value={selectedEmployee.Department || selectedEmployee.department} />
+                                            <InfoItem label="Employment Type" value={selectedEmployee.EmploymentCategory || "Regular"} />
                                             <InfoItem label="Date of Joining" value={formatDate(selectedEmployee.DateOfJoining || selectedEmployee.doj)} />
                                         </div>
                                     </div>
@@ -1058,9 +1099,9 @@ function HrDashboard() {
                                 </div>
                             )}
                             {detailTab === 'admin' && (
-                                <AdminActionsContent 
-                                    employee={selectedEmployee} 
-                                    onUpdate={(fields) => handleUpdateStatus(selectedEmployee.EmpID, fields)} 
+                                <AdminActionsContent
+                                    employee={selectedEmployee}
+                                    onUpdate={(fields) => handleUpdateStatus(selectedEmployee.EmpID, fields)}
                                 />
                             )}
                         </div>

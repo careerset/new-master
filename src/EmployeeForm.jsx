@@ -1175,12 +1175,126 @@ function EmployeeForm() {
               <div className="form-card" style={{ gridColumn: 'span 2', marginTop: '20px' }}>
                 <h4 className="section-heading" style={{ marginTop: '0' }}>Permanent Address</h4>
 
+                <div className="residence-fields">
+
+
+                  <div className="residence-field">
+                    <label>Country</label>
+                    <select name="residenceCountry" value={formData.residenceCountry || ""} onChange={handleChange} required>
+                      <option value="">Select country</option>
+                      {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="residence-field">
+                    <label>State</label>
+                    <select name="residenceState" value={formData.residenceState} onChange={handleChange} required>
+                      <option value="">Select State</option>
+                      {formData.residenceCountry && COUNTRY_STATES[formData.residenceCountry]?.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="residence-field">
+                    <label>District</label>
+                    {formData.residenceState === "Tamil Nadu" ? (
+                      <select
+                        name="residenceDistrict"
+                        value={formData.residenceDistrict}
+                        onChange={(e) => {
+                          handleChange(e);
+                          // Reset City when District changes
+                          setFormData(prev => ({ ...prev, residenceCity: "" }));
+                        }}
+                        required
+                      >
+                        <option value="">Select District</option>
+                        {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="residenceDistrict"
+                        placeholder="Enter district"
+                        value={formData.residenceDistrict || ""}
+                        onChange={handleChange}
+                        required
+                      />
+                    )}
+                  </div>
+
+                  <div className="residence-field">
+                    <label>City/Town</label>
+                    {formData.residenceDistrict && DISTRICT_CITIES[formData.residenceDistrict] ? (
+                      <select name="residenceCity" value={formData.residenceCity} onChange={handleChange} required>
+                        <option value="">Select City/Town</option>
+                        {DISTRICT_CITIES[formData.residenceDistrict].map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                        <option value="Other">Other</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="residenceCity"
+                        placeholder="Enter city or town"
+                        value={formData.residenceCity || ""}
+                        onChange={handleChange}
+                        required
+                      />
+                    )}
+                  </div>
+                  <div className="residence-field">
+                    <label>Street Name</label>
+                    <input
+                      type="text"
+                      name="residenceStreet"
+                      placeholder="Door No, Street name, Area"
+                      value={formData.residenceStreet || ""}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+
+
+
+                  <div className="residence-field">
+                    <label>Postal Code</label>
+                    <input
+                      type="text"
+                      name="residencePostalCode"
+                      placeholder=" postal code"
+                      maxLength={6}
+                      value={formData.residencePostalCode || ""}
+                      onChange={(e) => handleNumberOnly(e, 6, "residencePostalCode")}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Present Address */}
+              <div className="form-card" style={{ gridColumn: 'span 2', marginTop: '30px' }}>
+                <h4 className="section-heading" style={{ marginTop: '0' }}>Present Address</h4>
+
+                <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input
+                    type="checkbox"
+                    id="sameAsPermanent"
+                    checked={sameAsPermanent}
+                    onChange={handleSameAsPermanentChange}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="sameAsPermanent" style={{ fontSize: '14px', cursor: 'pointer', color: 'var(--primary-color)', fontWeight: '600' }}>Same as Permanent Address</label>
+                </div>
+
+                {!sameAsPermanent && (
                   <div className="residence-fields">
-
-
                     <div className="residence-field">
                       <label>Country</label>
-                      <select name="residenceCountry" value={formData.residenceCountry || ""} onChange={handleChange} required>
+                      <select name="presentCountry" value={formData.presentCountry || ""} onChange={handleChange} required>
                         <option value="">Select country</option>
                         {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                       </select>
@@ -1188,9 +1302,9 @@ function EmployeeForm() {
 
                     <div className="residence-field">
                       <label>State</label>
-                      <select name="residenceState" value={formData.residenceState} onChange={handleChange} required>
+                      <select name="presentState" value={formData.presentState} onChange={handleChange} required>
                         <option value="">Select State</option>
-                        {formData.residenceCountry && COUNTRY_STATES[formData.residenceCountry]?.map(s => (
+                        {formData.presentCountry && COUNTRY_STATES[formData.presentCountry]?.map(s => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                         <option value="Other">Other</option>
@@ -1199,14 +1313,13 @@ function EmployeeForm() {
 
                     <div className="residence-field">
                       <label>District</label>
-                      {formData.residenceState === "Tamil Nadu" ? (
+                      {formData.presentState === "Tamil Nadu" ? (
                         <select
-                          name="residenceDistrict"
-                          value={formData.residenceDistrict}
+                          name="presentDistrict"
+                          value={formData.presentDistrict}
                           onChange={(e) => {
                             handleChange(e);
-                            // Reset City when District changes
-                            setFormData(prev => ({ ...prev, residenceCity: "" }));
+                            setFormData(prev => ({ ...prev, presentCity: "" }));
                           }}
                           required
                         >
@@ -1216,9 +1329,9 @@ function EmployeeForm() {
                       ) : (
                         <input
                           type="text"
-                          name="residenceDistrict"
+                          name="presentDistrict"
                           placeholder="Enter district"
-                          value={formData.residenceDistrict || ""}
+                          value={formData.presentDistrict || ""}
                           onChange={handleChange}
                           required
                         />
@@ -1227,10 +1340,10 @@ function EmployeeForm() {
 
                     <div className="residence-field">
                       <label>City/Town</label>
-                      {formData.residenceDistrict && DISTRICT_CITIES[formData.residenceDistrict] ? (
-                        <select name="residenceCity" value={formData.residenceCity} onChange={handleChange} required>
+                      {formData.presentDistrict && DISTRICT_CITIES[formData.presentDistrict] ? (
+                        <select name="presentCity" value={formData.presentCity} onChange={handleChange} required>
                           <option value="">Select City/Town</option>
-                          {DISTRICT_CITIES[formData.residenceDistrict].map(city => (
+                          {DISTRICT_CITIES[formData.presentDistrict].map(city => (
                             <option key={city} value={city}>{city}</option>
                           ))}
                           <option value="Other">Other</option>
@@ -1238,160 +1351,47 @@ function EmployeeForm() {
                       ) : (
                         <input
                           type="text"
-                          name="residenceCity"
+                          name="presentCity"
                           placeholder="Enter city or town"
-                          value={formData.residenceCity || ""}
+                          value={formData.presentCity || ""}
                           onChange={handleChange}
                           required
                         />
                       )}
                     </div>
+
                     <div className="residence-field">
                       <label>Street Name</label>
                       <input
                         type="text"
-                        name="residenceStreet"
+                        name="presentStreet"
                         placeholder="Door No, Street name, Area"
-                        value={formData.residenceStreet || ""}
+                        value={formData.presentStreet || ""}
                         onChange={handleChange}
                         required
                       />
                     </div>
 
-
-
                     <div className="residence-field">
                       <label>Postal Code</label>
                       <input
                         type="text"
-                        name="residencePostalCode"
+                        name="presentPostalCode"
                         placeholder=" postal code"
                         maxLength={6}
-                        value={formData.residencePostalCode || ""}
-                        onChange={(e) => handleNumberOnly(e, 6, "residencePostalCode")}
+                        value={formData.presentPostalCode || ""}
+                        onChange={(e) => handleNumberOnly(e, 6, "presentPostalCode")}
                         required
                       />
                     </div>
                   </div>
-                </div>
-
-                {/* Present Address */}
-                <div className="form-card" style={{ gridColumn: 'span 2', marginTop: '30px' }}>
-                  <h4 className="section-heading" style={{ marginTop: '0' }}>Present Address</h4>
-
-                  <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <input
-                      type="checkbox"
-                      id="sameAsPermanent"
-                      checked={sameAsPermanent}
-                      onChange={handleSameAsPermanentChange}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="sameAsPermanent" style={{ fontSize: '14px', cursor: 'pointer', color: 'var(--primary-color)', fontWeight: '600' }}>Same as Permanent Address</label>
+                )}
+                {sameAsPermanent && (
+                  <div className="info-banner" style={{ margin: '0' }}>
+                    <span>Present address is currently mirrored from permanent address.</span>
                   </div>
-
-                  {!sameAsPermanent && (
-                    <div className="residence-fields">
-                      <div className="residence-field">
-                        <label>Country</label>
-                        <select name="presentCountry" value={formData.presentCountry || ""} onChange={handleChange} required>
-                          <option value="">Select country</option>
-                          {COUNTRIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                        </select>
-                      </div>
-
-                      <div className="residence-field">
-                        <label>State</label>
-                        <select name="presentState" value={formData.presentState} onChange={handleChange} required>
-                          <option value="">Select State</option>
-                          {formData.presentCountry && COUNTRY_STATES[formData.presentCountry]?.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-
-                      <div className="residence-field">
-                        <label>District</label>
-                        {formData.presentState === "Tamil Nadu" ? (
-                          <select
-                            name="presentDistrict"
-                            value={formData.presentDistrict}
-                            onChange={(e) => {
-                              handleChange(e);
-                              setFormData(prev => ({ ...prev, presentCity: "" }));
-                            }}
-                            required
-                          >
-                            <option value="">Select District</option>
-                            {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            name="presentDistrict"
-                            placeholder="Enter district"
-                            value={formData.presentDistrict || ""}
-                            onChange={handleChange}
-                            required
-                          />
-                        )}
-                      </div>
-
-                      <div className="residence-field">
-                        <label>City/Town</label>
-                        {formData.presentDistrict && DISTRICT_CITIES[formData.presentDistrict] ? (
-                          <select name="presentCity" value={formData.presentCity} onChange={handleChange} required>
-                            <option value="">Select City/Town</option>
-                            {DISTRICT_CITIES[formData.presentDistrict].map(city => (
-                              <option key={city} value={city}>{city}</option>
-                            ))}
-                            <option value="Other">Other</option>
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            name="presentCity"
-                            placeholder="Enter city or town"
-                            value={formData.presentCity || ""}
-                            onChange={handleChange}
-                            required
-                          />
-                        )}
-                      </div>
-
-                      <div className="residence-field">
-                        <label>Street Name</label>
-                        <input
-                          type="text"
-                          name="presentStreet"
-                          placeholder="Door No, Street name, Area"
-                          value={formData.presentStreet || ""}
-                          onChange={handleChange}
-                          required
-                        />
-                      </div>
-
-                      <div className="residence-field">
-                        <label>Postal Code</label>
-                        <input
-                          type="text"
-                          name="presentPostalCode"
-                          placeholder=" postal code"
-                          maxLength={6}
-                          value={formData.presentPostalCode || ""}
-                          onChange={(e) => handleNumberOnly(e, 6, "presentPostalCode")}
-                          required
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {sameAsPermanent && (
-                    <div className="info-banner" style={{ margin: '0' }}>
-                      <span>Present address is currently mirrored from permanent address.</span>
-                    </div>
-                  )}
-                </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1672,7 +1672,7 @@ function EmployeeForm() {
                         if (e.target.value === "Other") {
                           setFormData(prev => ({ ...prev, PGCollege: "", manualPGCollege: "" }));
                         } else {
-                          setFormData(prev => ({ ...prev, PGCollege: e.target.value, manualPGCollege : undefined }));
+                          setFormData(prev => ({ ...prev, PGCollege: e.target.value, manualPGCollege: undefined }));
                         }
                       }} required={false}>
                         <option value="">Select Institution</option>
@@ -1838,11 +1838,11 @@ function EmployeeForm() {
                   )}
                 </div>
               )}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
   );
 }
 
