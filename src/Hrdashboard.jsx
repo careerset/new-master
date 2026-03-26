@@ -237,12 +237,14 @@ function HrDashboard() {
                 (emp.Name || "").toLowerCase().includes(searchId.toLowerCase());
             const matchesDept = filterDept === "All" || (emp.Department || emp.department) === filterDept;
             const matchesGender = filterGender === "All" || (emp.Gender || emp.gender)?.toLowerCase() === filterGender.toLowerCase();
+            const empStatus = emp.Status || emp.status;
             const matchesStatus = filterStatus === "All" ||
-                (filterStatus === "Active" && (!emp.Status || emp.Status?.toLowerCase() === "active")) ||
-                (filterStatus === "Inactive" && emp.Status?.toLowerCase() === "inactive");
+                (filterStatus === "Active" && (!empStatus || empStatus.toLowerCase() === "active")) ||
+                (filterStatus === "Inactive" && empStatus?.toLowerCase() === "inactive");
 
+            const empEmploymentType = emp.EmploymentType || emp.employmentType;
             const matchesEmployment = filterEmploymentType === "All" || (() => {
-                if (emp.EmploymentType) return (emp.EmploymentType?.toLowerCase() === filterEmploymentType.toLowerCase());
+                if (empEmploymentType) return (empEmploymentType.toLowerCase() === filterEmploymentType.toLowerCase());
                 // Fallback logic
                 const doj = new Date(emp.DateOfJoining || emp.doj);
                 const threeMonthsAgo = new Date();

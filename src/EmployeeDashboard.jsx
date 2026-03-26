@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { renderAsync } from "docx-preview";
+import JSZip from "jszip";
 import "./employeeDashboard.css";
+
+// Required for docx-preview to work correctly in some environments
+window.JSZip = JSZip;
+
 
 const formatDate = (dateString) => {
   if (!dateString) return "-";
@@ -41,6 +47,7 @@ function EmployeeDashboard() {
   const navigate = useNavigate();
   const [employeeData, setEmployeeData] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [viewingDoc, setViewingDoc] = useState(null);
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -88,10 +95,11 @@ function EmployeeDashboard() {
   const emp = employeeData;
 
   const navItems = [
-    { id: "overview", label: "Overview", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> },
-    { id: "profile", label: "Records", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
-    { id: "career", label: "Career", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 10l-6-6-6 6 6 6 6-6z"></path><path d="M6 10L0 16l6 6 6-6-6-6z"></path></svg> },
-    { id: "documents", label: "Documents", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> }
+    { id: "overview", label: "At a glance", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> },
+    { id: "profile", label: "My Hub", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
+    { id: "career", label: "Growth Path", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 10l-6-6-6 6 6 6 6-6z"></path><path d="M6 10L0 16l6 6 6-6-6-6z"></path></svg> },
+    { id: "documents", label: "Digital Vault", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> },
+    { id: "books", label: "HR Books", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg> }
   ];
 
   return (
@@ -437,7 +445,54 @@ function EmployeeDashboard() {
             </div>
           </div>
         )}
+
+        {activeTab === "books" && (
+          <div className="bento-item bento-full animate-fade">
+            <h3 className="section-subtitle">HR Handbooks & Policies</h3>
+            <div className="doc-bento-grid">
+              {[
+                ["Travel Policy", "/Hrpolicy/Travel Policy_Final.docx", "Guidelines for official travel, expenses, and trip reimbursements"],
+                ["Levels, Grade & Designations", "/Hrpolicy/Levels, Grade & Designations_Final.docx", "Information on organizational hierarchies and job bands"],
+                ["Leave Policy", "/Hrpolicy/Leave Policy_Final.docx", "Standard operating procedures for annual and sick leaves"],
+                ["Employees - Classification & Categorisation", "/Hrpolicy/Employees - Classification & Categorisation_Final.docx", "Details on employment types and employee classifications"],
+                ["Dress Code Policy", "/Hrpolicy/Dress Code Policy_Final.docx", "Standards for professional business attire and appearance"],
+                ["Communication Policy", "/Hrpolicy/Communication_Final.docx", "Rules regarding internal and external professional communications"],
+                ["Attendance Policy", "/Hrpolicy/Attendance Policy_Final.docx", "Working hours, timings, and attendance management rules"]
+              ].map(([lbl, link, desc], i) => (
+                <div key={i} className="doc-tile" style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div className="tile-head">
+                    <div className="tile-icon" style={{ background: '#f8fafc' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    </div>
+                    <div className="tile-meta">
+                      <h4 style={{ marginBottom: '4px' }}>{lbl}</h4>
+                      <span className="tile-status status-valid" style={{ background: '#dcfce7', color: '#16a34a' }}>AUTHORIZED</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '10px', marginBottom: '15px' }}>{desc}</p>
+                  <button 
+                    className="btn-open" 
+                    onClick={() => {
+                      const absoluteUrl = window.location.origin + link;
+                      setViewingDoc({ title: lbl, url: absoluteUrl, downloadPath: link });
+                    }} 
+                    style={{ marginTop: 'auto', cursor: 'pointer', width: '100%', border: '1px solid #e2e8f0', background: 'white', color: '#4f46e5', fontWeight: '800', padding: '10px', borderRadius: '10px' }}
+                  >
+                    View Document
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
+
+      {viewingDoc && (
+        <PolicyModal 
+          doc={viewingDoc} 
+          onClose={() => setViewingDoc(null)} 
+        />
+      )}
     </div>
   );
 }
@@ -460,6 +515,93 @@ function Field({ label, value }) {
     <div className="info-pair">
       <label>{label}</label>
       <div className="val">{value || "—"}</div>
+    </div>
+  );
+}
+
+function PolicyModal({ doc, onClose }) {
+  const viewerRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDoc() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(doc.url);
+        if (!response.ok) throw new Error("Failed to fetch document");
+        
+        const blob = await response.blob();
+        
+        if (isMounted && viewerRef.current) {
+          viewerRef.current.innerHTML = ""; // Clear loader
+          await renderAsync(blob, viewerRef.current, viewerRef.current, {
+            className: "docx",
+            inWrapper: false,
+            ignoreWidth: false,
+            ignoreHeight: false,
+            debug: false
+          });
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Docx rendering error:", err);
+        if (isMounted) {
+          setError("Could not render document view. You can still download it using the icon above.");
+          setLoading(false);
+        }
+      }
+    }
+
+    loadDoc();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [doc.url]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content animate-pop" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-header-info">
+            <div className="modal-header-icon">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            </div>
+            <h3>{doc.title}</h3>
+          </div>
+          <div className="modal-header-actions">
+            <a href={doc.downloadPath} download className="btn-download-mini" title="Download copy">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </a>
+            <button className="btn-close-modal" onClick={onClose}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+        <div className="modal-body">
+          <div className="viewer-container" style={{ height: '100%', overflow: 'auto', background: '#f8fafc', padding: '20px' }}>
+            {loading && (
+              <div className="viewer-loader">
+                <div className="spinner"></div>
+                <p>Establishing secure connection...</p>
+                <span className="viewer-note">Preparing document bytes for rendering...</span>
+              </div>
+            )}
+            {error && (
+               <div className="viewer-loader">
+                <div className="bento-icon" style={{ background: '#fee2e2', color: '#ef4444', marginBottom: '15px' }}>⚠️</div>
+                <p>{error}</p>
+              </div>
+            )}
+            <div ref={viewerRef} className="docx-render-area"></div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
