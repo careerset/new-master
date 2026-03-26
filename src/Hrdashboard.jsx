@@ -377,9 +377,9 @@ function HrDashboard() {
                                     if (e.EmploymentType?.toLowerCase() === 'permanent') return true;
                                     if (e.EmploymentType) return false;
                                     const doj = new Date(e.DateOfJoining || e.doj);
-                                    const sixMonthsAgo = new Date();
-                                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                                    return doj <= sixMonthsAgo;
+                                    const threeMonthsAgo = new Date();
+                                    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+                                    return doj <= threeMonthsAgo;
                                 }).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}
                                 color="#8b5cf6"
@@ -472,17 +472,17 @@ function HrDashboard() {
                                             if (e.EmploymentType?.toLowerCase() === 'probation') return true;
                                             if (e.EmploymentType) return false;
                                             const doj = new Date(e.DateOfJoining || e.doj);
-                                            const sixMonthsAgo = new Date();
-                                            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                                            return doj > sixMonthsAgo;
+                                            const threeMonthsAgo = new Date();
+                                            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+                                            return doj > threeMonthsAgo;
                                         }).length;
                                         const permCount = employees.filter(e => {
                                             if (e.EmploymentType?.toLowerCase() === 'permanent') return true;
                                             if (e.EmploymentType) return false;
                                             const doj = new Date(e.DateOfJoining || e.doj);
-                                            const sixMonthsAgo = new Date();
-                                            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                                            return doj <= sixMonthsAgo;
+                                            const threeMonthsAgo = new Date();
+                                            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+                                            return doj <= threeMonthsAgo;
                                         }).length;
 
                                         return (
