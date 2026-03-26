@@ -719,6 +719,7 @@ function EmployeeForm() {
     reader.readAsArrayBuffer(file);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const downloadTemplate = (e) => {
     e.preventDefault();
     const headers = [
