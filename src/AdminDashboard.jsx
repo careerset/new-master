@@ -1,10 +1,21 @@
 import { useEffect, useState } from "react";
-import "./hr.css";
+import "./admindashboard.css";
 import { useNavigate } from "react-router-dom";
 import PrintProfile from "./PrintProfile";
 import "./print.css";
 
 const SCRIPT_URL = process.env.REACT_APP_API_URL;
+
+const getDriveDirectLink = (url) => {
+    if (!url) return null;
+    if (url.includes("drive.google.com")) {
+        const id = url.match(/[-\w]{25,}/);
+        if (id) return `https://lh3.googleusercontent.com/u/0/d/${id[0]}`;
+        const ucId = url.split("id=")[1] || url.split("/d/")[1]?.split("/")[0];
+        if (ucId) return `https://drive.google.com/uc?export=view&id=${ucId}`;
+    }
+    return url;
+};
 
 const formatDate = (dateString) => {
     if (!dateString) return "-";
@@ -26,7 +37,22 @@ function AdminDashboard() {
     const [loading, setLoading] = useState(false);
     const [searchId, setSearchId] = useState("");
     const [activeTab, setActiveTab] = useState("dashboard");
+    const [filterDept, setFilterDept] = useState("All");
+    const [filterGender, setFilterGender] = useState("All");
+    const [filterStatus, setFilterStatus] = useState("All");
+    const [filterEmploymentType, setFilterEmploymentType] = useState("All");
+    const [detailTab, setDetailTab] = useState("personal");
+    const [sortBy, setSortBy] = useState("name");
+    const [uniqueDepts, setUniqueDepts] = useState([]);
     const navigate = useNavigate();
+
+    const normalizeDept = (dept) => {
+        if (!dept) return "";
+        const name = dept.trim();
+        if (name === "HRD") return "HR";
+        if (name === "Management") return "Admin";
+        return name;
+    };
 
     const loadEmployees = async () => {
         try {
@@ -59,21 +85,79 @@ function AdminDashboard() {
         return () => clearInterval(interval);
     }, [activeTab]);
 
+    const getUpcomingBirthdays = () => {
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        return employees.filter(emp => {
+            if (!emp.DOB && !emp.dob) return false;
+            const dob = new Date(emp.DOB || emp.dob);
+            return (dob.getMonth() + 1) === currentMonth;
+        }).slice(0, 3);
+    };
+
+    const getWorkAnniversaries = () => {
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        return employees.filter(emp => {
+            if (!emp.DateOfJoining && !emp.doj) return false;
+            const doj = new Date(emp.DateOfJoining || emp.doj);
+            return (doj.getMonth() + 1) === currentMonth && doj.getFullYear() < today.getFullYear();
+        }).slice(0, 3);
+    };
+
+    const getProfileCompletion = (emp) => {
+        const fields = [
+            emp.Name, emp.DOB, emp.Gender, emp.Email, emp.Phone,
+            emp.AadharNumber, emp.PAN, emp.Designation, emp.Department,
+            emp.Resume, emp.Photo, emp.BankName, emp.AccountNumber
+        ];
+        const completed = fields.filter(f => f && f !== "-" && f !== "").length;
+        return Math.round((completed / fields.length) * 100);
+    };
+
+    const filteredEmployees = employees
+        .filter(emp => {
+            const matchesSearch = (emp.EmpID || emp.employee_code || "").toString().includes(searchId) ||
+                (emp.Name || "").toLowerCase().includes(searchId.toLowerCase());
+            const matchesDept = filterDept === "All" || (emp.Department || emp.department) === filterDept;
+            const matchesGender = filterGender === "All" || (emp.Gender || emp.gender)?.toLowerCase() === filterGender.toLowerCase();
+            const empStatus = emp.Status || emp.status;
+            const matchesStatus = (filterStatus === "All") ||
+                (filterStatus === "Active" && (!empStatus || empStatus.toLowerCase() === 'active')) ||
+                (filterStatus === "Inactive" && empStatus?.toLowerCase() === 'inactive') ||
+                (filterStatus === "PIP" && empStatus?.toLowerCase() === 'pip') ||
+                (filterStatus === "Inactive Suspend" && empStatus?.toLowerCase() === 'inactive suspend') ||
+                (filterStatus === "Abscond" && empStatus?.toLowerCase() === 'abscond');
+
+            const empEmploymentType = emp.EmploymentType || emp.employmentType;
+            const matchesEmployment = filterEmploymentType === "All" || (() => {
+                if (empEmploymentType) return (empEmploymentType.toLowerCase() === filterEmploymentType.toLowerCase());
+                const doj = new Date(emp.DateOfJoining || emp.doj);
+                const threeMonthsAgo = new Date();
+                threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+                const isProbation = doj > threeMonthsAgo;
+                return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Permanent" && !isProbation);
+            })();
+
+            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesEmployment;
+        })
+        .sort((a, b) => {
+            if (sortBy === "name") return (a.Name || "").localeCompare(b.Name || "");
+            if (sortBy === "id") return (a.EmpID || "").localeCompare(b.EmpID || "");
+            if (sortBy === "doj") return new Date(a.DateOfJoining || a.doj) - new Date(b.DateOfJoining || b.doj);
+            return 0;
+        });
+
+    useEffect(() => {
+        setUniqueDepts([...new Set(employees.map(e => normalizeDept(e.Department || e.department)))].filter(d => d && d !== "-"));
+    }, [employees]);
+
+    const departments = ["All", ...uniqueDepts];
+
     const searchEmployee = () => {
         if (!searchId) return loadEmployees();
         const filtered = employees.filter(emp => (emp.EmpID || emp.employee_code || "").toString().includes(searchId));
         setEmployees(filtered);
-    };
-
-    const viewEmployee = (empId) => {
-        setLoading(true);
-        fetch(`${SCRIPT_URL}?action=getEmployee&empId=${empId}`)
-            .then(res => res.json())
-            .then(data => {
-                setSelectedEmployee(data.employee);
-                setLoading(false);
-            })
-            .catch(err => setLoading(false));
     };
 
     const deleteEmployee = async (empId) => {
@@ -119,39 +203,39 @@ function AdminDashboard() {
     };
 
     return (
-        <div className="hr-page-wrapper admin-theme">
+        <div className="ad-portal-layout">
             {/* Sidebar Navigation */}
-            <div className="hr-sidebar">
-                <div className="hr-sidebar-logo">
+            <div className="ad-sidebar-strip">
+                <div className="ad-logo-wrap">
                     <img src="/chn-logo.png" alt="Company Logo" />
                     <h2>Admin Panel</h2>
                 </div>
-                <div className="hr-nav">
-                    <div className={`hr-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+                <div className="ad-nav-stack">
+                    <div className={`ad-nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                         <span>System Overview</span>
                     </div>
-                    <div className={`hr-nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => setActiveTab('employees')}>
+                    <div className={`ad-nav-link ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => setActiveTab('employees')}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         <span>Manage Records</span>
                     </div>
                 </div>
-                <div className="hr-nav-item" style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9' }} onClick={() => navigate("/admin-login")}>
+                <div className="ad-nav-link" style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9' }} onClick={() => navigate("/admin-login")}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                     <span>Logout</span>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="hr-main">
-                <div className="hr-header">
+            <div className="ad-viewport">
+                <div className="ad-top-nav">
                     <div>
                         <h1>System Command Center</h1>
                         <p style={{ color: '#64748b', margin: '5px 0 0 0', fontSize: '14px' }}>Global Administrative Control & Audit</p>
                     </div>
-                    <div className="hr-header-actions">
+                    <div className="ad-action-shelf">
                         {activeTab === 'employees' && (
-                            <div className="hr-search-bar">
+                            <div className="ad-search-field">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                                 <input
                                     type="text"
@@ -162,390 +246,449 @@ function AdminDashboard() {
                                 />
                             </div>
                         )}
-                        <button className="hr-btn-icon" onClick={loadEmployees} style={{ background: '#4f46e5' }}>Refresh Cache</button>
+                        <div className="celebration-hub">
+                            <div className="hub-icon">✨</div>
+                            <div className="hub-content">
+                                <span className="hub-label">Global Events:</span>
+                                <span className="hub-stats">
+                                    <strong>{getUpcomingBirthdays().length}</strong> 🎂 •
+                                    <strong>{getWorkAnniversaries().length}</strong> 🎊
+                                </span>
+                            </div>
+                        </div>
+                        <button className="ad-cmd-btn" onClick={loadEmployees} style={{ background: 'var(--ad-gradient)' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px' }}><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            Refresh System
+                        </button>
                     </div>
                 </div>
 
                 {activeTab === 'dashboard' ?
-                    <div className="dashboard-content">
-                        {/* Admin Stats Grid */}
-                        <div className="hr-stats-grid">
+                    <div className="ad-grid-layout">
+                        {/* Admin Global Stats */}
+                        <div className="ad-stats-deck">
                             <StatCardV2
-                                label="Total System Records"
+                                label="Total Workforce"
                                 value={employees.length}
-                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>}
-                                color="#4f46e5"
-                            />
-                            <StatCardV2
-                                label="Database Status"
-                                value={loading ? "SYNCING" : "ONLINE"}
-                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>}
-                                color="#10b981"
-                            />
-                            <StatCardV2
-                                label="Storage Usage"
-                                value="OPTIMAL"
-                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H3M21 6H3M21 14H3M21 18H3"></path></svg>}
+                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>}
                                 color="#6366f1"
+                                onClick={() => setActiveTab('employees')}
                             />
                             <StatCardV2
-                                label="Security Audit"
-                                value="SECURE"
-                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}
-                                color="#f59e0b"
+                                label="Active Records"
+                                value={employees.filter(e => !e.Status || e.Status?.toLowerCase() === 'active').length}
+                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>}
+                                color="#10b981"
+                                onClick={() => { setActiveTab('employees'); setFilterStatus('Active'); }}
+                            />
+                            <StatCardV2
+                                label="Data Quality Score"
+                                value={`${Math.round(employees.reduce((acc, curr) => acc + getProfileCompletion(curr), 0) / (employees.length || 1))}%`}
+                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>}
+                                color="#8b5cf6"
+                            />
+                            <StatCardV2
+                                label="Critical Audits"
+                                value={employees.filter(e => !e.AadharNumber || !e.PAN || !e.Photo).length}
+                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>}
+                                color="#ef4444"
                             />
                         </div>
 
-                        <div className="dashboard-widgets-row">
-                            <div className="widget-card">
-                                <div className="widget-header">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20v-6M6 20V10M18 20V4M3 20h18"></path></svg>
-                                    <h4>System Onboarding Audit</h4>
+                        <div className="ad-widget-row">
+                            <div className="ad-widget-box">
+                                <div className="ad-widget-top">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                                    <h4>Gender Distribution</h4>
                                 </div>
-                                <div className="timeline-list">
-                                    {employees.slice(0, 4).map((emp, i) => (
-                                        <div className="timeline-item" key={i}>
-                                            <div className="timeline-dot"></div>
-                                            <div className="timeline-content">
-                                                <h5>{emp.Name} (ID: {emp.EmpID})</h5>
-                                                <span>Joined: {formatDate(emp.DateOfJoining || emp.doj)} • Department: {emp.Department || "N/A"}</span>
+                                <div className="ad-dept-list">
+                                    <div className="ad-dept-row">
+                                        <div className="ad-dept-label">Male</div>
+                                        <div className="ad-bar-track">
+                                            <div className="ad-bar-fill" style={{ width: `${(employees.filter(e => e.Gender?.toLowerCase() === 'male').length / (employees.length || 1)) * 100}%`, background: '#3b82f6' }}></div>
+                                        </div>
+                                        <div className="ad-bar-value">{employees.filter(e => e.Gender?.toLowerCase() === 'male').length}</div>
+                                    </div>
+                                    <div className="ad-dept-row">
+                                        <div className="ad-dept-label">Female</div>
+                                        <div className="ad-bar-track">
+                                            <div className="ad-bar-fill" style={{ width: `${(employees.filter(e => e.Gender?.toLowerCase() === 'female').length / (employees.length || 1)) * 100}%`, background: '#ec4899' }}></div>
+                                        </div>
+                                        <div className="ad-bar-value">{employees.filter(e => e.Gender?.toLowerCase() === 'female').length}</div>
+                                    </div>
+                                    <div className="ad-dept-row">
+                                        <div className="ad-dept-label">Not Specified</div>
+                                        <div className="ad-bar-track">
+                                            <div className="ad-bar-fill" style={{ width: `${(employees.filter(e => !e.Gender || e.Gender === '-').length / (employees.length || 1)) * 100}%`, background: '#94a3b8' }}></div>
+                                        </div>
+                                        <div className="ad-bar-value">{employees.filter(e => !e.Gender || e.Gender === '-').length}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="ad-widget-box">
+                                <div className="ad-widget-top">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                                    <h4>Global Department Layout</h4>
+                                </div>
+                                <div className="ad-dept-list overflow-auto" style={{ maxHeight: '200px' }}>
+                                    {Object.entries(
+                                        employees.reduce((acc, curr) => {
+                                            const dept = normalizeDept(curr.Department || curr.department);
+                                            if (dept && dept !== "-") {
+                                                acc[dept] = (acc[dept] || 0) + 1;
+                                            }
+                                            return acc;
+                                        }, {})
+                                    )
+                                        .sort((a, b) => b[1] - a[1])
+                                        .slice(0, 5)
+                                        .map(([dept, count]) => (
+                                            <div key={dept} className="ad-dept-row">
+                                                <div className="ad-dept-label">{dept}</div>
+                                                <div className="ad-bar-track">
+                                                    <div className="ad-bar-fill" style={{ width: `${(count / (employees.length || 1)) * 100}%` }}></div>
+                                                </div>
+                                                <div className="ad-bar-value">{count}</div>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="ad-widget-row" style={{ marginTop: '20px' }}>
+                            <div className="ad-widget-box" style={{ flex: 1.5 }}>
+                                <div className="ad-widget-top">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    <h4>System Audit Timeline</h4>
+                                </div>
+                                <div className="ad-audit-log">
+                                    {employees.slice(0, 5).map((emp, i) => (
+                                        <div key={i} className="ad-log-entry">
+                                            <div className="ad-log-bullet"></div>
+                                            <div className="ad-log-body">
+                                                <span>Record synced for {emp.Name}</span>
+                                                <small>{formatDate(new Date())}</small>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
-
-                            <div className="widget-card">
-                                <div className="widget-header">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                    <h4>Data Quality Audit</h4>
+                            <div className="ad-widget-box" style={{ flex: 1 }}>
+                                <div className="ad-widget-top">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    <h4>Experience Levels</h4>
                                 </div>
-                                <div className="circular-progress-container">
-                                    <svg className="circle-svg" style={{ transform: 'rotate(-90deg)' }}>
-                                        <circle className="circle-bg" cx="60" cy="60" r="50"></circle>
-                                        <circle
-                                            className="circle-fill"
-                                            cx="60" cy="60" r="50"
-                                            strokeDasharray="314"
-                                            strokeDashoffset={314 - (314 * (employees.filter(e => e.AadharNumber && e.PAN && e.Email).length / (employees.length || 1)))}
-                                            style={{ stroke: '#4f46e5' }}
-                                        ></circle>
-                                    </svg>
-                                    <div className="circle-text">
-                                        <h3>{employees.length > 0 ? Math.round((employees.filter(e => e.AadharNumber && e.PAN && e.Email).length / employees.length) * 100) : 0}%</h3>
-                                        <span>Data Quality</span>
-                                    </div>
-                                    <p style={{ fontSize: '11px', color: '#64748b', marginTop: '20px', textAlign: 'center' }}>
-                                        Percentage of records with complete Mandatory information (Aadhar, PAN, Email).
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="widget-card">
-                                <div className="widget-header">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                                    <h4>Environment Health</h4>
-                                </div>
-                                <div className="health-grid">
-                                    <div className="health-item">
-                                        <div className="health-status-dot"></div>
-                                        <span>Cloud Storage</span>
-                                    </div>
-                                    <div className="health-item">
-                                        <div className="health-status-dot"></div>
-                                        <span>Sheets API</span>
-                                    </div>
-                                    <div className="health-item">
-                                        <div className="health-status-dot"></div>
-                                        <span>Forms Engine</span>
-                                    </div>
-                                    <div className="health-item">
-                                        <div className="health-status-dot"></div>
-                                        <span>Backup Sync</span>
-                                    </div>
-                                </div>
-                                <div className="stat-card" style={{ marginTop: '25px', padding: '15px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                                        <span>System Stability:</span>
-                                        <span style={{ color: '#10b981', fontWeight: '800' }}>99.9%</span>
-                                    </div>
+                                <div className="ad-status-stack">
+                                    <StatusItem label="Junior (0-2y)" count={employees.filter(e => (parseInt(e.TotalExpYears) || 0) <= 2).length} total={employees.length} color="#10b981" />
+                                    <StatusItem label="Mid-Level (3-5y)" count={employees.filter(e => (parseInt(e.TotalExpYears) || 0) >= 3 && (parseInt(e.TotalExpYears) || 0) <= 5).length} total={employees.length} color="#3b82f6" />
+                                    <StatusItem label="Senior (6-10y)" count={employees.filter(e => (parseInt(e.TotalExpYears) || 0) >= 6 && (parseInt(e.TotalExpYears) || 0) <= 10).length} total={employees.length} color="#f59e0b" />
+                                    <StatusItem label="Expert (10y+)" count={employees.filter(e => (parseInt(e.TotalExpYears) || 0) > 10).length} total={employees.length} color="#ef4444" />
                                 </div>
                             </div>
                         </div>
                     </div>
                     :
-                    <div className="employees-grid">
-                        {employees.length === 0 ? (
-                            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '100px' }}>
-                                <p style={{ color: '#64748b' }}>No system records found.</p>
+                    <div className="ad-manage-section">
+                        <div className="ad-filter-bar">
+                            <div className="ad-filter-unit">
+                                <label>Department</label>
+                                <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+                                    {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
                             </div>
-                        ) : (
-                            employees.map((emp, idx) => {
-                                const empId = emp.EmpID || emp.employee_code;
-                                return (
-                                    <div key={idx} className="emp-modern-card">
-                                        <div className="emp-card-header">
-                                            <div className="emp-initials" style={{ background: '#fef3c7', color: '#d97706' }}>{emp.Name ? emp.Name.charAt(0) : "E"}</div>
-                                            <div className="emp-card-info">
-                                                <h4>{emp.Name}</h4>
-                                                <p>{emp.Designation || "Designation Not Set"}</p>
+                            <div className="ad-filter-unit">
+                                <label>Gender</label>
+                                <select value={filterGender} onChange={(e) => setFilterGender(e.target.value)}>
+                                    <option value="All">All Genders</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                            <div className="ad-filter-unit">
+                                <label>Status</label>
+                                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                                    <option value="All">All Status</option>
+                                    <option value="Active">Active Only</option>
+                                    <option value="Inactive">Inactive Only</option>
+                                    <option value="PIP">PIP</option>
+                                    <option value="Inactive Suspend">Inactive Suspend</option>
+                                    <option value="Abscond">Abscond</option>
+                                </select>
+                            </div>
+                            <div className="ad-filter-unit">
+                                <label>Confirmation</label>
+                                <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
+                                    <option value="All">All Types</option>
+                                    <option value="Permanent">Confirmed</option>
+                                    <option value="Probation">Probation</option>
+                                </select>
+                            </div>
+                            <div className="ad-filter-unit">
+                                <label>Sort By</label>
+                                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                                    <option value="name">Name</option>
+                                    <option value="id">Employee ID</option>
+                                    <option value="doj">Joining Date</option>
+                                </select>
+                            </div>
+                            <div className="ad-filter-count">
+                                Records: <strong>{filteredEmployees.length}</strong>
+                            </div>
+                        </div>
+
+                        <div className="ad-card-canvas">
+                            {filteredEmployees.length === 0 ? (
+                                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '100px' }}>
+                                    <p style={{ color: '#64748b' }}>No system records match your search criteria.</p>
+                                </div>
+                            ) : (
+                                filteredEmployees.map((emp, idx) => {
+                                    const empId = emp.EmpID || emp.employee_code;
+                                    const completion = getProfileCompletion(emp);
+                                    return (
+                                        <div key={idx} className="ad-emp-card animate-fade-in">
+                                            <div className="ad-emp-top">
+                                                <div className="ad-avatar-frame">
+                                                    <div className="ad-avatar-text">
+                                                        <span>{emp.Name ? emp.Name.charAt(0) : "E"}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="ad-emp-info">
+                                                    <h4 style={{ margin: 0, fontSize: '16px' }}>{emp.Name}</h4>
+                                                    <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>{emp.Designation || "Team Member"}</p>
+                                                </div>
                                             </div>
+                                            <div className="ad-emp-mid">
+                                                <div className="ad-emp-meta">
+                                                    <div className="ad-meta-row">
+                                                        <span className="ad-meta-key">ID:</span>
+                                                        <span className="ad-meta-val">{empId}</span>
+                                                    </div>
+                                                    <div className="ad-meta-row">
+                                                        <span className="ad-meta-key">Dept:</span>
+                                                        <span className="ad-meta-val">{emp.Department || "Unassigned"}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="ad-tag-box">
+                                                    <span className={`ad-tag-status ${(emp.Status || 'Active').toLowerCase()}`}>{emp.Status || 'Active'}</span>
+                                                    <span className="ad-tag-type">{emp.EmploymentType || 'Confirmed'}</span>
+                                                </div>
+                                            </div>
+                                                <div className="ad-emp-bottom">
+                                                    <button className="ad-btn-detail" onClick={() => { setSelectedEmployee(emp); setDetailTab("personal"); }}>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                        Detail
+                                                    </button>
+                                                    <button className="ad-btn-excel" onClick={() => handleExcelDownload(empId)}>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+                                                        Excel
+                                                    </button>
+                                                    <button className="ad-btn-remove" onClick={() => deleteEmployee(empId)}>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                        Delete
+                                                    </button>
+                                                </div>
                                         </div>
-                                        <div className="emp-card-body">
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>Employee ID:</span>
-                                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{empId}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>Email:</span>
-                                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{emp.Email}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>Dept:</span>
-                                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{emp.Department || "N/A"}</span>
-                                            </div>
-                                        </div>
-                                        <div className="emp-card-footer">
-                                            <button className="btn-view" onClick={() => viewEmployee(empId)}>Full View</button>
-                                            <button className="btn-download" onClick={() => deleteEmployee(empId)} style={{ background: '#ef4444' }}>Terminate</button>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
                 }
             </div>
 
             {/* Employee Details Modal */}
             {selectedEmployee && (
-                <div className="details-overlay">
-                    <div className="details-modal">
-                        <div className="modal-header">
-                            <div>
-                                <h2 style={{ fontSize: '24px', margin: '0 0 5px 0' }}>{selectedEmployee.Name}</h2>
-                                <p style={{ color: '#2563eb', fontWeight: '600', margin: 0 }}>ID: {selectedEmployee.EmpID}</p>
+                <div className="ad-modal-mask">
+                    <div className="ad-modal-core">
+                        <div className="ad-modal-top-bar">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                <div className="ad-avatar-text" style={{ width: '60px', height: '60px', background: 'rgba(255,255,255,0.2)', color: 'white' }}>{selectedEmployee.Name?.charAt(0)}</div>
+                                <div>
+                                    <h2 style={{ fontSize: '24px', margin: 0 }}>{selectedEmployee.Name}</h2>
+                                    <p style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '600', margin: 0 }}>ID: {selectedEmployee.EmpID}</p>
+                                </div>
                             </div>
-                            <button className="modal-close" onClick={() => setSelectedEmployee(null)}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            <button className="ad-nav-link" style={{ background: 'transparent', color: 'white', border: 'none', padding: 0 }} onClick={() => setSelectedEmployee(null)}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
 
-                        <div className="profile-section">
-                            <h3>Personal Information</h3>
-                            <div className="profile-grid">
-                                <InfoItem label="Full Name" value={selectedEmployee.Name || selectedEmployee.name} />
-                                <InfoItem label="Date of Birth" value={formatDate(selectedEmployee.DOB || selectedEmployee.dob)} />
-                                <InfoItem label="Gender" value={selectedEmployee.Gender || selectedEmployee.gender} />
-                                <InfoItem label="Blood Group" value={selectedEmployee.BloodGroup || selectedEmployee.bloodGroup} />
-                                <InfoItem label="Father Name" value={selectedEmployee.FatherName || selectedEmployee.fatherName} />
-                                <InfoItem label="Mother Name" value={selectedEmployee.MotherName || selectedEmployee.motherName} />
-                                <InfoItem label="Marital Status" value={selectedEmployee.MaritalStatus || selectedEmployee.maritalStatus} />
-                                {(selectedEmployee.MaritalStatus === 'Married' || selectedEmployee.maritalStatus === 'Married') && <InfoItem label="Spouse Name" value={selectedEmployee.SpouseName || selectedEmployee.spouseName} />}
-                                <InfoItem label="Aadhar Number" value={selectedEmployee.AadharNumber || selectedEmployee.aadharNumber} />
-                                <InfoItem label="PAN Number" value={selectedEmployee.PAN || selectedEmployee.panNumber} />
-                            </div>
+                        <div className="ad-modal-pill-nav">
+                            <button className={`ad-nav-link ${detailTab === 'personal' ? 'active' : ''}`} onClick={() => setDetailTab('personal')}>Personal</button>
+                            <button className={`ad-nav-link ${detailTab === 'education' ? 'active' : ''}`} onClick={() => setDetailTab('education')}>Education</button>
+                            <button className={`ad-nav-link ${detailTab === 'experience' ? 'active' : ''}`} onClick={() => setDetailTab('experience')}>Experience</button>
+                            <button className={`ad-nav-link ${detailTab === 'statutory' ? 'active' : ''}`} onClick={() => setDetailTab('statutory')}>Statutory</button>
+                            <button className={`ad-nav-link ${detailTab === 'documents' ? 'active' : ''}`} onClick={() => setDetailTab('documents')}>Documents</button>
                         </div>
 
-                        <div className="profile-section">
-                            <h3>Professional Info</h3>
-                            <div className="profile-grid">
-                                <InfoItem label="Designation" value={selectedEmployee.Designation || selectedEmployee.designation} />
-                                <InfoItem label="Department" value={selectedEmployee.Department || selectedEmployee.department} />
-                                <InfoItem label="Date of Joining" value={formatDate(selectedEmployee.DateOfJoining || selectedEmployee.doj)} />
-                            </div>
-                        </div>
-
-                        <div className="profile-section">
-                            <h3>Contact Details</h3>
-                            <div className="profile-grid">
-                                <InfoItem label="Email" value={selectedEmployee.Email || selectedEmployee.email} />
-                                <InfoItem label="Phone" value={selectedEmployee.Phone || selectedEmployee.phone} />
-                                <InfoItem label="Permanent Address" value={selectedEmployee.PermanentAddress || selectedEmployee.permanentAddress} span={2} />
-                                <InfoItem label="Present Address" value={selectedEmployee.PresentAddress || selectedEmployee.presentAddress} span={2} />
-                            </div>
-                        </div>
-
-                        <div className="profile-section">
-                            <h3>Academic History</h3>
-                            <div className="profile-grid">
-                                <div style={{ gridColumn: '1/-1', borderBottom: '1px dashed #e2e8f0', paddingBottom: '10px', marginBottom: '10px' }}>
-                                    <strong style={{ fontSize: '12px', color: '#64748b' }}>Schooling (10th & 12th)</strong>
-                                    <div className="profile-grid" style={{ marginTop: '5px' }}>
-                                        <InfoItem label="10th School" value={selectedEmployee["10thSchool"]} />
-                                        <InfoItem label="10th Board" value={selectedEmployee["10thBoard"]} />
-                                        <InfoItem label="10th Year" value={selectedEmployee["10thYear"]} />
-                                        <InfoItem label="10th %" value={selectedEmployee["10thPercent"]} />
-                                        <InfoItem label="12th School" value={selectedEmployee["12thSchool"]} />
-                                        <InfoItem label="12th Board" value={selectedEmployee["12thBoard"]} />
-                                        <InfoItem label="12th Year" value={selectedEmployee["12thYear"]} />
-                                        <InfoItem label="12th %" value={selectedEmployee["12thPercent"]} />
+                        <div className="ad-modal-body-scroll">
+                            {detailTab === 'personal' && (
+                                <div className="profile-section animate-fade-in">
+                                    <h3>Personal Details</h3>
+                                    <div className="profile-grid">
+                                        <InfoItem label="Full Name" value={selectedEmployee.Name} />
+                                        <InfoItem label="Email Address" value={selectedEmployee.Email} />
+                                        <InfoItem label="Phone Number" value={selectedEmployee.Phone} />
+                                        <InfoItem label="Gender" value={selectedEmployee.Gender} />
+                                        <InfoItem label="Date of Birth" value={formatDate(selectedEmployee.DOB)} />
+                                        <InfoItem label="Blood Group" value={selectedEmployee.BloodGroup} />
+                                        <InfoItem label="Father's Name" value={selectedEmployee.FatherName} />
+                                        <InfoItem label="Mother's Name" value={selectedEmployee.MotherName} />
+                                        <InfoItem label="Marital Status" value={selectedEmployee.MaritalStatus} />
+                                        <InfoItem label="Aadhar Number" value={selectedEmployee.AadharNumber} />
+                                        <InfoItem label="PAN Number" value={selectedEmployee.PAN} />
+                                        <InfoItem label="Present Address" value={selectedEmployee.PresentAddress} span={2} />
+                                        <InfoItem label="Permanent Address" value={selectedEmployee.PermanentAddress} span={2} />
                                     </div>
                                 </div>
-                                {selectedEmployee.DiplomaDegree && (
-                                    <div style={{ gridColumn: '1/-1', borderBottom: '1px dashed #e2e8f0', paddingBottom: '10px', marginBottom: '10px' }}>
-                                        <strong style={{ fontSize: '12px', color: '#64748b' }}>Diploma</strong>
-                                        <div className="profile-grid" style={{ marginTop: '5px' }}>
-                                            <InfoItem label="Degree" value={selectedEmployee.DiplomaDegree} />
-                                            <InfoItem label="Specialization" value={selectedEmployee.DiplomaSpecialization} />
-                                            <InfoItem label="College" value={selectedEmployee.DiplomaCollege} />
-                                            <InfoItem label="Year" value={selectedEmployee.DiplomaYear} />
-                                            <InfoItem label="Percentage" value={selectedEmployee.DiplomaPercent} />
+                            )}
+
+                            {detailTab === 'education' && (
+                                <div className="profile-section animate-fade-in">
+                                    <h3>Educational Qualifications</h3>
+                                    <div className="profile-grid">
+                                        <div style={{ gridColumn: '1/-1', background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '10px' }}>
+                                            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>Schooling (10th & 12th)</h4>
+                                            <div className="profile-grid">
+                                                <InfoItem label="10th School" value={selectedEmployee["10thSchool"]} />
+                                                <InfoItem label="10th Board" value={selectedEmployee["10thBoard"]} />
+                                                <InfoItem label="10th Year" value={selectedEmployee["10thYear"]} />
+                                                <InfoItem label="10th %" value={selectedEmployee["10thPercent"]} />
+                                                <InfoItem label="12th School" value={selectedEmployee["12thSchool"]} />
+                                                <InfoItem label="12th Board" value={selectedEmployee["12thBoard"]} />
+                                                <InfoItem label="12th Year" value={selectedEmployee["12thYear"]} />
+                                                <InfoItem label="12th %" value={selectedEmployee["12thPercent"]} />
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                <div style={{ gridColumn: '1/-1', borderBottom: '1px dashed #e2e8f0', paddingBottom: '10px', marginBottom: '10px' }}>
-                                    <strong style={{ fontSize: '12px', color: '#64748b' }}>Undergraduate (UG)</strong>
-                                    <div className="profile-grid" style={{ marginTop: '5px' }}>
-                                        <InfoItem label="Degree" value={selectedEmployee.UGDegree} />
-                                        <InfoItem label="Specialization" value={selectedEmployee.UGSpecialization} />
-                                        <InfoItem label="College" value={selectedEmployee.UGCollege} />
-                                        <InfoItem label="Year" value={selectedEmployee.UGYear} />
-                                        <InfoItem label="Percentage" value={selectedEmployee.UGPercent} />
+                                        <div style={{ gridColumn: '1/-1', background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '10px' }}>
+                                            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>Undergraduate (UG)</h4>
+                                            <div className="profile-grid">
+                                                <InfoItem label="Degree" value={selectedEmployee.UGDegree} />
+                                                <InfoItem label="Specialization" value={selectedEmployee.UGSpecialization} />
+                                                <InfoItem label="College" value={selectedEmployee.UGCollege} />
+                                                <InfoItem label="Year of Passing" value={selectedEmployee.UGYear} />
+                                                <InfoItem label="Percentage/CGPA" value={selectedEmployee.UGPercent} />
+                                            </div>
+                                        </div>
+                                        {selectedEmployee.PGDegree && (
+                                            <div style={{ gridColumn: '1/-1', background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
+                                                <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>Postgraduate (PG)</h4>
+                                                <div className="profile-grid">
+                                                    <InfoItem label="Degree" value={selectedEmployee.PGDegree} />
+                                                    <InfoItem label="Specialization" value={selectedEmployee.PGSpecialization} />
+                                                    <InfoItem label="College" value={selectedEmployee.PGCollege} />
+                                                    <InfoItem label="Year of Passing" value={selectedEmployee.PGYear} />
+                                                    <InfoItem label="Percentage/CGPA" value={selectedEmployee.PGPercent} />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                {selectedEmployee.PGDegree && (
-                                    <div style={{ gridColumn: '1/-1' }}>
-                                        <strong style={{ fontSize: '12px', color: '#64748b' }}>Postgraduate (PG)</strong>
-                                        <div className="profile-grid" style={{ marginTop: '5px' }}>
-                                            <InfoItem label="Degree" value={selectedEmployee.PGDegree} />
-                                            <InfoItem label="Specialization" value={selectedEmployee.PGSpecialization} />
-                                            <InfoItem label="College" value={selectedEmployee.PGCollege} />
-                                            <InfoItem label="Year" value={selectedEmployee.PGYear} />
-                                            <InfoItem label="Percentage" value={selectedEmployee.PGPercent} />
-                                        </div>
+                            )}
+
+                            {detailTab === 'experience' && (
+                                <div className="profile-section animate-fade-in">
+                                    <h3>Professional Experience</h3>
+                                    <div className="profile-grid" style={{ marginBottom: '20px' }}>
+                                        <InfoItem label="Total Experience" value={`${selectedEmployee.TotalExpYears || 0} Years ${selectedEmployee.TotalExpMonths || 0} Months`} />
+                                        <InfoItem label="Career Break" value={selectedEmployee.CareerBreak} />
+                                        <InfoItem label="Department" value={selectedEmployee.Department} />
+                                        <InfoItem label="Designation" value={selectedEmployee.Designation} />
+                                        <InfoItem label="Date of Joining" value={formatDate(selectedEmployee.DateOfJoining)} />
                                     </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="profile-section">
-                            <h3>Professional Experience</h3>
-                            <div className="profile-grid" style={{ marginBottom: '15px' }}>
-                                <InfoItem label="Total Experience" value={`${selectedEmployee.TotalExpYears || 0} Years, ${selectedEmployee.TotalExpMonths || 0} Months`} />
-                                <InfoItem label="Career Break" value={selectedEmployee.CareerBreak || selectedEmployee.careerBreak} />
-                            </div>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table className="details-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Organization</th>
-                                            <th>Designation</th>
-                                            <th>Duration</th>
-                                            <th>Salary</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(() => {
-                                            let employments = [];
-                                            try {
-                                                const raw = selectedEmployee.EmploymentHistory || selectedEmployee.employments;
-                                                employments = typeof raw === 'string' ? JSON.parse(raw) : raw || [];
-                                            } catch (e) { }
-                                            if (employments.length === 0) return <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>No records found</td></tr>;
-                                            return employments.map((e, i) => (
-                                                <tr key={i}>
-                                                    <td>{e.organization}</td>
-                                                    <td>{e.designation}</td>
-                                                    <td>{e.startDate ? `${e.startDate} to ${e.endDate}` : (e.period || "-")}</td>
-                                                    <td>{e.salary}</td>
+                                    <h4 style={{ fontSize: '14px', color: '#475569', marginBottom: '10px' }}>Employment History</h4>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table className="details-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Organization</th>
+                                                    <th>Designation</th>
+                                                    <th>Period</th>
+                                                    <th>Salary</th>
                                                 </tr>
-                                            ));
-                                        })()}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div className="profile-section">
-                            <h3>Dependents & Emergency</h3>
-                            <div className="profile-grid" style={{ marginBottom: '15px' }}>
-                                <InfoItem label="Emergency Contact" value={selectedEmployee.EmergencyName} />
-                                <InfoItem label="Relationship" value={selectedEmployee.EmergencyRelation} />
-                                <InfoItem label="Emergency Phone" value={selectedEmployee.EmergencyPhone} />
-                            </div>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table className="details-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Dependent Name</th>
-                                            <th>Relation</th>
-                                            <th>DOB</th>
-                                            <th>Aadhar Number</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(() => {
-                                            let dependents = [];
-                                            try {
-                                                const raw = selectedEmployee.Dependents || selectedEmployee.dependents;
-                                                dependents = typeof raw === 'string' ? JSON.parse(raw) : raw || [];
-                                            } catch (e) { }
-                                            if (dependents.length === 0) return <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>No dependents listed</td></tr>;
-                                            return dependents.map((d, i) => (
-                                                <tr key={i}>
-                                                    <td>{d.name}</td>
-                                                    <td>{d.relation}</td>
-                                                    <td>{formatDate(d.dob)}</td>
-                                                    <td>{d.aadharNumber}</td>
-                                                </tr>
-                                            ));
-                                        })()}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div className="profile-section">
-                            <h3>Bank & Statutory</h3>
-                            <div className="profile-grid">
-                                <InfoItem label="Account Holder" value={selectedEmployee.BankAccountHolder || selectedEmployee.accountHolderName} />
-                                <InfoItem label="Bank Name" value={selectedEmployee.BankName || selectedEmployee.bankName} />
-                                <InfoItem label="Account Number" value={selectedEmployee.AccountNumber || selectedEmployee.accountNumber} />
-                                <InfoItem label="IFSC Code" value={selectedEmployee.IFSC || selectedEmployee.ifscCode} />
-                                <InfoItem label="Branch Name" value={selectedEmployee.Branch || selectedEmployee.branchName} />
-                                <InfoItem label="UAN Number" value={selectedEmployee.UAN || selectedEmployee.uanNumber} />
-                                <InfoItem label="PF Number" value={selectedEmployee.PF || selectedEmployee.pfNumber} />
-                                <InfoItem label="ESI Number" value={selectedEmployee.ESINumber || selectedEmployee.esiNumber} />
-                            </div>
-                        </div>
-
-                        <div className="profile-section">
-                            <h3>All Documents Verification</h3>
-                            <div className="doc-grid">
-                                {[
-                                    ["Resume", selectedEmployee.Resume],
-                                    ["SSLC (10th)", selectedEmployee.SSLC],
-                                    ["HSC (12th)", selectedEmployee.HSC],
-                                    ["UG Degree", selectedEmployee.DegreeCertificate || selectedEmployee.Degree],
-                                    ["PG Degree", selectedEmployee.PGCertificate || selectedEmployee.PG],
-                                    ["Diploma", selectedEmployee.DiplomaCertificate || selectedEmployee.Diploma],
-                                    ["Personal Photo", selectedEmployee.Photo],
-                                    ["Aadhar (Self)", selectedEmployee.AadharFile],
-                                    ["Aadhar (Father)", selectedEmployee.AadharFather],
-                                    ["Aadhar (Mother)", selectedEmployee.AadharMother],
-                                    ["PAN Card", selectedEmployee.PANFile],
-                                    ["Bank Proof", selectedEmployee.BankPassbook],
-                                    ["Offer Letter", selectedEmployee.OfferLetter],
-                                    ["Relieving Letter", selectedEmployee.ExperienceLetter],
-                                    ["Payslip", selectedEmployee.Payslip]
-                                ].map(([label, url], i) => (
-                                    <div key={i} className={`doc-status-card ${url ? 'uploaded' : 'missing'}`}>
-                                        <div className="doc-info">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                            <span>{label}</span>
-                                        </div>
-                                        {url ? <a href={url} target="_blank" rel="noreferrer" className="doc-view-link">View</a> : <span className="doc-missing-text">None</span>}
+                                            </thead>
+                                            <tbody>
+                                                {(() => {
+                                                    let history = [];
+                                                    try {
+                                                        history = typeof selectedEmployee.EmploymentHistory === 'string'
+                                                            ? JSON.parse(selectedEmployee.EmploymentHistory)
+                                                            : selectedEmployee.EmploymentHistory || [];
+                                                    } catch (e) { }
+                                                    return history.length > 0 ? history.map((exp, i) => (
+                                                        <tr key={i}>
+                                                            <td>{exp.organization}</td>
+                                                            <td>{exp.designation}</td>
+                                                            <td>{exp.period}</td>
+                                                            <td>{exp.salary}</td>
+                                                        </tr>
+                                                    )) : <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>No experience records</td></tr>;
+                                                })()}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
+
+                            {detailTab === 'statutory' && (
+                                <div className="profile-section animate-fade-in">
+                                    <h3>Bank & Statutory Details</h3>
+                                    <div className="profile-grid">
+                                        <InfoItem label="Bank Name" value={selectedEmployee.BankName} />
+                                        <InfoItem label="Account Number" value={selectedEmployee.AccountNumber} />
+                                        <InfoItem label="IFSC Code" value={selectedEmployee.IFSC} />
+                                        <InfoItem label="Branch" value={selectedEmployee.Branch} />
+                                        <InfoItem label="UAN Number" value={selectedEmployee.UAN} />
+                                        <InfoItem label="PF Number" value={selectedEmployee.PF} />
+                                        <InfoItem label="ESI Number" value={selectedEmployee.ESINumber} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {detailTab === 'documents' && (
+                                <div className="profile-section animate-fade-in">
+                                    <h3>Document Verification</h3>
+                                    <div className="doc-grid">
+                                        {[
+                                            ["Photo", selectedEmployee.Photo],
+                                            ["Resume", selectedEmployee.Resume],
+                                            ["Aadhar Card", selectedEmployee.AadharFile],
+                                            ["PAN Card", selectedEmployee.PANFile],
+                                            ["10th Certificate", selectedEmployee.SSLC],
+                                            ["12th Certificate", selectedEmployee.HSC],
+                                            ["UG Certificate", selectedEmployee.DegreeCertificate],
+                                            ["Relieving Letter", selectedEmployee.RelievingLetter],
+                                            ["Bank Passbook", selectedEmployee.BankPassbook]
+                                        ].map(([label, url], i) => (
+                                            <div key={i} className={`doc-status-card ${url ? 'uploaded' : 'missing'}`}>
+                                                <div className="doc-info">
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                                    <span>{label}</span>
+                                                </div>
+                                                {url ? <a href={url} target="_blank" rel="noreferrer" className="doc-view-link">View</a> : <span className="doc-missing-text">None</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        <div style={{ display: 'flex', gap: '15px', marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
-                            <button className="hr-btn-icon" onClick={() => handleExcelDownload(selectedEmployee.EmpID)} style={{ background: '#4f46e5' }}>Excel</button>
-                            <button className="hr-btn-icon" style={{ background: '#64748b' }} onClick={() => window.print()}>Print Profile</button>
-                            <button className="hr-btn-icon" style={{ background: '#ef4444' }} onClick={() => deleteEmployee(selectedEmployee.EmpID)}>Terminate Record</button>
-                            <button className="hr-btn-icon" style={{ background: '#f1f5f9', color: '#1e293b', marginLeft: 'auto' }} onClick={() => setSelectedEmployee(null)}>Close</button>
+                        <div className="ad-modal-footer">
+                            <button className="ad-cmd-btn" onClick={() => handleExcelDownload(selectedEmployee.EmpID)}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+                                Download Excel
+                            </button>
+                            <button className="ad-cmd-btn" style={{ background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)' }} onClick={() => window.print()}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                                Print Profile
+                            </button>
+                            <button className="ad-cmd-btn" style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }} onClick={() => deleteEmployee(selectedEmployee.EmpID)}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                Delete Profile
+                            </button>
+                            <button className="ad-cmd-btn" style={{ background: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: 'none' }} onClick={() => setSelectedEmployee(null)}>Close</button>
                         </div>
                     </div>
                 </div>
@@ -555,9 +698,9 @@ function AdminDashboard() {
             {selectedEmployee && <PrintProfile employee={selectedEmployee} />}
 
             {loading && (
-                <div style={{ position: 'fixed', bottom: '30px', right: '30px', background: 'white', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', z: 2000 }}>
-                    <div className="loader-dot" style={{ background: '#4f46e5' }}></div>
-                    <span style={{ fontSize: '14px', fontWeight: '600' }}>Admin Sync...</span>
+                <div style={{ position: 'fixed', bottom: '30px', right: '30px', background: 'white', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 2000 }}>
+                    <div className="loader-dot" style={{ background: 'var(--ad-primary)', width: '10px', height: '10px', borderRadius: '50%' }}></div>
+                    <span style={{ fontSize: '14px', fontWeight: '600' }}>System Syncing...</span>
                 </div>
             )}
         </div>
@@ -566,27 +709,43 @@ function AdminDashboard() {
 
 function InfoItem({ label, value, span = 1 }) {
     return (
-        <div className="info-item" style={{ gridColumn: `span ${span}` }}>
-            <label>{label}</label>
-            <span>{value || "Not Provided"}</span>
+        <div className="ad-meta-row" style={{ gridColumn: `span ${span}`, flexDirection: 'column', alignItems: 'flex-start', gap: '5px', background: '#f8fafc', padding: '15px', borderRadius: '12px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#64748b' }}>{label}</label>
+            <span style={{ fontSize: '15px', fontWeight: '600', color: '#1e1b4b' }}>{value || "Not Provided"}</span>
         </div>
     );
 }
 
-function StatCardV2({ label, value, percentage, icon, color }) {
-    const rgb = color.startsWith('#') ? hexToRgb(color) : '79, 70, 229';
+function StatCardV2({ label, value, percentage, icon, color, onClick }) {
+    const rgb = color.startsWith('#') ? hexToRgb(color) : '99, 102, 241';
     return (
-        <div className="stat-card-v2" style={{ '--accent-color': color, '--accent-rgb': rgb }}>
-            <div className="stat-icon-box">
+        <div className="ad-stat-box" style={{ '--accent-color': color, '--accent-rgb': rgb, cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
+            <div className="ad-stat-icon" style={{ backgroundColor: `rgba(${rgb}, 0.1)`, color: color }}>
                 {icon}
             </div>
-            <div className="stat-info">
+            <div className="ad-stat-data">
                 <span>{label}</span>
                 <h3>{value}</h3>
             </div>
             {percentage !== undefined && (
-                <div className="stat-percentage">{percentage}%</div>
+                <div className="ad-stat-tag">{percentage}%</div>
             )}
+        </div>
+    );
+}
+
+function StatusItem({ label, count, total, color }) {
+    const percent = total > 0 ? (count / total) * 100 : 0;
+    return (
+        <div className="ad-status-record">
+            <div className="ad-status-header">
+                <div className="ad-status-led" style={{ backgroundColor: color }}></div>
+                <div className="ad-status-title">{label}</div>
+            </div>
+            <div className="ad-bar-track" style={{ marginTop: '8px', marginBottom: '4px' }}>
+                <div className="ad-bar-fill" style={{ width: `${percent}%`, background: color }}></div>
+            </div>
+            <div className="ad-bar-value" style={{ fontSize: '12px' }}>{count}</div>
         </div>
     );
 }

@@ -1137,7 +1137,7 @@ function EmployeeForm() {
                     <option value="WFM">WFM</option>
                     <option value="Sales & Marketing">Sales & Marketing</option>
                     <option value="Administration">Administration</option>
-                    <option value="Accounts & Finance">Accounts & Finance</option>
+                    <option value="Accounting & Finance">Accounting & Finance</option>
                     <option value="Business Development">Business Development</option>
                     <option value="Other">Other</option>
                   </select>

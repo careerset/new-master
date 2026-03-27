@@ -19,6 +19,17 @@ const formatDate = (dateString) => {
     }
 };
 
+const getDriveDirectLink = (url) => {
+    if (!url) return null;
+    if (url.includes("drive.google.com")) {
+        const id = url.match(/[-\w]{25,}/);
+        if (id) return `https://lh3.googleusercontent.com/u/0/d/${id[0]}`;
+        const ucId = url.split("id=")[1] || url.split("/d/")[1]?.split("/")[0];
+        if (ucId) return `https://drive.google.com/uc?export=view&id=${ucId}`;
+    }
+    return url;
+};
+
 const normalizeDept = (dept) => {
     if (!dept) return "";
     const name = dept.trim();
@@ -74,9 +85,9 @@ function AdminActionsContent({ employee, onUpdate }) {
                         style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
                     >
                         <option value="Regular">Regular</option>
-                        <option value="Intern">Intern</option>
                         <option value="Contract">Contract</option>
-                        <option value="Training">Training</option>
+                        <option value="Training">Trainer</option>
+                        <option value="Intern">Intern</option>
                         <option value="Consultant">Consultant</option>
                         <option value="Other">Other</option>
                     </select>
@@ -719,9 +730,9 @@ function HrDashboard() {
                                 <select value={filterEmploymentCategory} onChange={(e) => setFilterEmploymentCategory(e.target.value)}>
                                     <option value="All">All Types</option>
                                     <option value="Regular">Regular</option>
-                                    <option value="Intern">Intern</option>
                                     <option value="Contract">Contract</option>
-                                    <option value="Training">Training</option>
+                                    <option value="Training">Trainer</option>
+                                    <option value="Intern">Intern</option>
                                     <option value="Consultant">Consultant</option>
                                     <option value="Other">Other</option>
                                 </select>
@@ -755,14 +766,6 @@ function HrDashboard() {
                                                 <div className="emp-card-info">
                                                     <h4>{emp.Name}</h4>
                                                     <p>{emp.Designation || "Designation Not Set"}</p>
-                                                </div>
-                                                <div className="completion-badge" title="Profile Completion">
-                                                    <svg width="24" height="24">
-                                                        <circle cx="12" cy="12" r="10" fill="none" stroke="#f1f5f9" strokeWidth="2" />
-                                                        <circle cx="12" cy="12" r="10" fill="none" stroke={completion > 80 ? "#22c55e" : "#f59e0b"} strokeWidth="2"
-                                                            strokeDasharray="62.8" strokeDashoffset={62.8 - (62.8 * completion / 100)} transform="rotate(-90 12 12)" />
-                                                    </svg>
-                                                    <span>{completion}%</span>
                                                 </div>
                                             </div>
                                             <div className="emp-card-body">
@@ -1066,32 +1069,46 @@ function HrDashboard() {
                             )}
 
                             {detailTab === 'documents' && (
-                                <div className="profile-section">
-                                    <h3>Uploaded Documents</h3>
-                                    <div className="doc-grid">
+                                <div className="bento-item bento-full animate-fade">
+                                    <h3 className="section-subtitle">Digital Vault - Verified Documents</h3>
+                                    <div className="doc-bento-grid">
                                         {[
-                                            ["Resume", selectedEmployee.Resume],
-                                            ["SSLC (10th)", selectedEmployee.SSLC],
-                                            ["HSC (12th)", selectedEmployee.HSC],
-                                            ["UG Degree", selectedEmployee.DegreeCertificate || selectedEmployee.Degree],
-                                            ["Diploma", selectedEmployee.DiplomaCertificate || selectedEmployee.Diploma],
-                                            ["PG Degree", selectedEmployee.PGCertificate || selectedEmployee.PG],
-                                            ["Personal Photo", selectedEmployee.Photo],
-                                            ["Aadhar (Self)", selectedEmployee.AadharFile],
-                                            ["PAN Card", selectedEmployee.PANFile],
-                                            ["Bank Passbook", selectedEmployee.BankPassbook],
-                                            ["Experience Letter", selectedEmployee.ExperienceLetter],
-                                            ["Latest Payslip", selectedEmployee.Payslip]
-                                        ].map(([label, url], i) => (
-                                            <div key={i} className={`doc-status-card ${url ? 'uploaded' : 'missing'}`}>
-                                                <div className="doc-info">
-                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                                    <span>{label}</span>
+                                            ["Profile Photograph", selectedEmployee.Photo, "user"],
+                                            ["Current Resume", selectedEmployee.Resume, "file"],
+                                            ["Identity - Aadhar", selectedEmployee.AadharFile, "shield"],
+                                            ["Tax Card - PAN", selectedEmployee.PANFile, "id-card"],
+                                            ["Academic - SSLC", selectedEmployee.SSLC, "award"],
+                                            ["Academic - HSC", selectedEmployee.HSC, "award"],
+                                            ["Diploma Certificate", selectedEmployee.DiplomaCertificate || selectedEmployee.Diploma, "award"],
+                                            ["Degree Certificate", selectedEmployee.DegreeCertificate || selectedEmployee.Degree, "award"],
+                                            ["Experience Letter", selectedEmployee.ExperienceLetter, "briefcase"],
+                                            ["Latest Payslip", selectedEmployee.Payslip, "credit-card"],
+                                            ["Bank Passbook", selectedEmployee.BankPassbook, "bank"],
+                                            ["Offer Letter", selectedEmployee.OfferLetter, "briefcase"]
+                                        ].map(([lbl, link, icon], i) => (
+                                            <div key={i} className="doc-tile">
+                                                <div className="tile-head">
+                                                    <div className="tile-icon">
+                                                        {lbl.includes("Photo") && link ? (
+                                                            <img src={getDriveDirectLink(link)} alt="Mini" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
+                                                        ) : (
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5">
+                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                                            </svg>
+                                                        )}
+                                                    </div>
+                                                    <div className="tile-meta">
+                                                        <h4>{lbl}</h4>
+                                                        <span className={`tile-status ${link ? 'status-valid' : 'status-missing'}`}>
+                                                            {link ? "VERIFIED" : "PENDING"}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                {url ? (
-                                                    <a href={url} target="_blank" rel="noreferrer" className="doc-view-link">View</a>
+                                                {link ? (
+                                                    <a href={link} target="_blank" rel="noreferrer" className="btn-open">View Original File</a>
                                                 ) : (
-                                                    <span className="doc-missing-text">Missing</span>
+                                                    <button className="btn-open" disabled style={{ opacity: 0.5, cursor: 'not-allowed', color: '#94a3b8' }}>Unavailable</button>
                                                 )}
                                             </div>
                                         ))}

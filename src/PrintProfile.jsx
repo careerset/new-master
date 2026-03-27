@@ -388,6 +388,7 @@ const PrintProfile = ({ employee }) => {
               ["PG Degree", employee.PGCertificate],
               ["Aadhar Card", employee.AadharFile],
               ["PAN Card", employee.PANFile],
+              ["Relieving Letter", employee.RelievingLetter],
               ["Bank Passbook", employee.BankPassbook]
             ].map(([label, url], i) => (
               <tr key={i}>
