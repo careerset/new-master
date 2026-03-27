@@ -6,17 +6,6 @@ import "./print.css";
 
 const SCRIPT_URL = process.env.REACT_APP_API_URL;
 
-const getDriveDirectLink = (url) => {
-    if (!url) return null;
-    if (url.includes("drive.google.com")) {
-        const id = url.match(/[-\w]{25,}/);
-        if (id) return `https://lh3.googleusercontent.com/u/0/d/${id[0]}`;
-        const ucId = url.split("id=")[1] || url.split("/d/")[1]?.split("/")[0];
-        if (ucId) return `https://drive.google.com/uc?export=view&id=${ucId}`;
-    }
-    return url;
-};
-
 const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
@@ -480,7 +469,6 @@ function ManagerDashboard() {
                             ) : (
                                 filteredEmployees.map((emp, idx) => {
                                     const empId = emp.EmpID || emp.employee_code;
-                                    const completion = getProfileCompletion(emp);
                                     return (
                                         <div key={idx} className="mg-member-card animate-fade-in">
                                             <div className="mg-member-header">

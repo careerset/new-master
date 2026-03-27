@@ -758,7 +758,6 @@ function HrDashboard() {
                             ) : (
                                 filteredEmployees.map((emp, idx) => {
                                     const empId = emp.EmpID || emp.employee_code;
-                                    const completion = getProfileCompletion(emp);
                                     return (
                                         <div key={idx} className="emp-modern-card">
                                             <div className="emp-card-header">
