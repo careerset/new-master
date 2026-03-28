@@ -40,8 +40,8 @@ const normalizeDept = (dept) => {
 
 function AdminActionsContent({ employee, onUpdate }) {
     const [status, setStatus] = useState(employee.Status || "Active");
-    const [type, setType] = useState(employee.EmploymentType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
-    const [category, setCategory] = useState(employee.EmploymentCategory || "Regular");
+    const [confType, setConfType] = useState(employee.ConfirmationType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
+    const [empType, setEmpType] = useState(employee.EmploymentType || "regular");
 
     return (
         <div className="profile-section" style={{ border: '2px dashed #fecaca', padding: '25px', borderRadius: '16px', background: '#fffafb' }}>
@@ -69,27 +69,27 @@ function AdminActionsContent({ employee, onUpdate }) {
                 <div className="info-item">
                     <label>Confirmation Status</label>
                     <select
-                        value={type}
-                        onChange={(e) => setType(e.target.value)}
+                        value={confType}
+                        onChange={(e) => setConfType(e.target.value)}
                         style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
                     >
                         <option value="Probation">Probation</option>
-                        <option value="Permanent">Confirmed</option>
+                        <option value="Confirmed">Confirmed</option>
                     </select>
                 </div>
                 <div className="info-item">
                     <label>Employment Type</label>
                     <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
+                        value={empType}
+                        onChange={(e) => setEmpType(e.target.value)}
                         style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
                     >
-                        <option value="Regular">Regular</option>
-                        <option value="Contract">Contract</option>
-                        <option value="Training">Trainer</option>
-                        <option value="Intern">Intern</option>
-                        <option value="Consultant">Consultant</option>
-                        <option value="Other">Other</option>
+                        <option value="regular">Regular</option>
+                        <option value="contract">Contract</option>
+                        <option value="training">Training</option>
+                        <option value="intern">Intern</option>
+                        <option value="consultant">Consultant</option>
+                        <option value="other">Other</option>
                     </select>
                 </div>
             </div>
@@ -98,7 +98,7 @@ function AdminActionsContent({ employee, onUpdate }) {
                 <button
                     className="hr-btn-icon"
                     style={{ background: '#ef4444', width: 'auto', padding: '12px 30px' }}
-                    onClick={() => onUpdate({ Status: status, EmploymentType: type, EmploymentCategory: category })}
+                    onClick={() => onUpdate({ Status: status, ConfirmationType: confType, EmploymentType: empType })}
                 >
                     Apply Changes
                 </button>
@@ -276,20 +276,21 @@ function HrDashboard() {
                 (filterStatus === "Inactive Suspend" && empStatus?.toLowerCase() === 'inactive suspend') ||
                 (filterStatus === "Abscond" && empStatus?.toLowerCase() === 'abscond');
 
-            const empEmploymentType = emp.EmploymentType || emp.employmentType;
-            const matchesEmployment = filterEmploymentType === "All" || (() => {
-                if (empEmploymentType) return (empEmploymentType.toLowerCase() === filterEmploymentType.toLowerCase());
+            const empConfType = emp.ConfirmationType || emp.confirmationType;
+            const matchesConfirmation = filterEmploymentType === "All" || (() => {
+                if (empConfType) return (empConfType.toLowerCase() === filterEmploymentType.toLowerCase());
                 // Fallback logic
                 const doj = new Date(emp.DateOfJoining || emp.doj);
                 const threeMonthsAgo = new Date();
                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                 const isProbation = doj > threeMonthsAgo;
-                return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Permanent" && !isProbation);
+                return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Confirmed" && !isProbation);
             })();
 
-            const matchesCategory = filterEmploymentCategory === "All" || (emp.EmploymentCategory === filterEmploymentCategory);
+            const empEmploymentType = emp.EmploymentType || emp.employmentType;
+            const matchesCategory = filterEmploymentType === "All" || (filterEmploymentCategory === "All" || (empEmploymentType?.toLowerCase() === filterEmploymentCategory.toLowerCase()));
 
-            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesEmployment && matchesCategory;
+            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesConfirmation && matchesCategory;
         })
         .sort((a, b) => {
             if (sortBy === "name") return (a.Name || "").localeCompare(b.Name || "");
@@ -398,8 +399,8 @@ function HrDashboard() {
                             <StatCardV2
                                 label="Probation"
                                 value={employees.filter(e => {
-                                    if (e.EmploymentType?.toLowerCase() === 'probation') return true;
-                                    if (e.EmploymentType) return false;
+                                    if (e.ConfirmationType?.toLowerCase() === 'probation') return true;
+                                    if (e.ConfirmationType) return false;
                                     const doj = new Date(e.DateOfJoining || e.doj);
                                     const threeMonthsAgo = new Date();
                                     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
@@ -410,10 +411,10 @@ function HrDashboard() {
                                 onClick={() => { setActiveTab('employees'); setFilterEmploymentType('Probation'); setFilterStatus('All'); }}
                             />
                             <StatCardV2
-                                label="Permanent"
+                                label="Confirmed"
                                 value={employees.filter(e => {
-                                    if (e.EmploymentType?.toLowerCase() === 'permanent') return true;
-                                    if (e.EmploymentType) return false;
+                                    if (e.ConfirmationType?.toLowerCase() === 'confirmed') return true;
+                                    if (e.ConfirmationType) return false;
                                     const doj = new Date(e.DateOfJoining || e.doj);
                                     const threeMonthsAgo = new Date();
                                     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
@@ -421,7 +422,7 @@ function HrDashboard() {
                                 }).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}
                                 color="#8b5cf6"
-                                onClick={() => { setActiveTab('employees'); setFilterEmploymentType('Permanent'); setFilterStatus('All'); }}
+                                onClick={() => { setActiveTab('employees'); setFilterEmploymentType('Confirmed'); setFilterStatus('All'); }}
                             />
                             <StatCardV2
                                 label="Monthly Joinees"
@@ -507,16 +508,16 @@ function HrDashboard() {
                                         const activeCount = employees.filter(e => !e.Status || ['active', 'pip'].includes(e.Status?.toLowerCase())).length;
                                         const inactiveCount = employees.filter(e => ['inactive', 'inactive suspend', 'abscond'].includes(e.Status?.toLowerCase())).length;
                                         const probCount = employees.filter(e => {
-                                            if (e.EmploymentType?.toLowerCase() === 'probation') return true;
-                                            if (e.EmploymentType) return false;
+                                            if (e.ConfirmationType?.toLowerCase() === 'probation') return true;
+                                            if (e.ConfirmationType) return false;
                                             const doj = new Date(e.DateOfJoining || e.doj);
                                             const threeMonthsAgo = new Date();
                                             threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                                             return doj > threeMonthsAgo;
                                         }).length;
                                         const permCount = employees.filter(e => {
-                                            if (e.EmploymentType?.toLowerCase() === 'permanent') return true;
-                                            if (e.EmploymentType) return false;
+                                            if (e.ConfirmationType?.toLowerCase() === 'confirmed') return true;
+                                            if (e.ConfirmationType) return false;
                                             const doj = new Date(e.DateOfJoining || e.doj);
                                             const threeMonthsAgo = new Date();
                                             threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
@@ -529,7 +530,7 @@ function HrDashboard() {
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                                         <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Employment Type</span>
                                                         <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                                            Probation: <strong style={{ color: '#f59e0b' }}>{probCount}</strong> | Permanent: <strong style={{ color: '#8b5cf6' }}>{permCount}</strong>
+                                                            Probation: <strong style={{ color: '#f59e0b' }}>{probCount}</strong> | Confirmed: <strong style={{ color: '#8b5cf6' }}>{permCount}</strong>
                                                         </span>
                                                     </div>
                                                     <div className="dept-bar-bg" style={{ height: '8px', display: 'flex', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
@@ -717,11 +718,11 @@ function HrDashboard() {
                                     <option value="Abscond">Abscond</option>
                                 </select>
                             </div>
-                            <div className="filter-group">
+                             <div className="filter-group">
                                 <label>Confirmation Status</label>
                                 <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
-                                    <option value="All">All Types</option>
-                                    <option value="Permanent">Confirmed</option>
+                                    <option value="All">All Statuses</option>
+                                    <option value="Confirmed">Confirmed</option>
                                     <option value="Probation">Probation</option>
                                 </select>
                             </div>
@@ -845,7 +846,8 @@ function HrDashboard() {
                                         <div className="profile-grid">
                                             <InfoItem label="Designation" value={selectedEmployee.Designation || selectedEmployee.designation} />
                                             <InfoItem label="Department" value={selectedEmployee.Department || selectedEmployee.department} />
-                                            <InfoItem label="Employment Type" value={selectedEmployee.EmploymentCategory || "Regular"} />
+                                            <InfoItem label="Confirmation Status" value={selectedEmployee.ConfirmationType || "Probation"} />
+                                            <InfoItem label="Employment Type" value={selectedEmployee.EmploymentType || "regular"} />
                                             <InfoItem label="Date of Joining" value={formatDate(selectedEmployee.DateOfJoining || selectedEmployee.doj)} />
                                         </div>
                                     </div>

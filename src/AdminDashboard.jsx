@@ -118,17 +118,17 @@ function AdminDashboard() {
                 (filterStatus === "Inactive Suspend" && empStatus?.toLowerCase() === 'inactive suspend') ||
                 (filterStatus === "Abscond" && empStatus?.toLowerCase() === 'abscond');
 
-            const empEmploymentType = emp.EmploymentType || emp.employmentType;
-            const matchesEmployment = filterEmploymentType === "All" || (() => {
-                if (empEmploymentType) return (empEmploymentType.toLowerCase() === filterEmploymentType.toLowerCase());
+            const empConfType = emp.ConfirmationType || emp.confirmationType;
+            const matchesConfirmation = filterEmploymentType === "All" || (() => {
+                if (empConfType) return (empConfType.toLowerCase() === filterEmploymentType.toLowerCase());
                 const doj = new Date(emp.DateOfJoining || emp.doj);
                 const threeMonthsAgo = new Date();
                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                 const isProbation = doj > threeMonthsAgo;
-                return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Permanent" && !isProbation);
+                return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Confirmed" && !isProbation);
             })();
 
-            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesEmployment;
+            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesConfirmation;
         })
         .sort((a, b) => {
             if (sortBy === "name") return (a.Name || "").localeCompare(b.Name || "");
@@ -408,8 +408,8 @@ function AdminDashboard() {
                             <div className="ad-filter-unit">
                                 <label>Confirmation</label>
                                 <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
-                                    <option value="All">All Types</option>
-                                    <option value="Permanent">Confirmed</option>
+                                    <option value="All">All Statuses</option>
+                                    <option value="Confirmed">Confirmed</option>
                                     <option value="Probation">Probation</option>
                                 </select>
                             </div>
@@ -460,23 +460,24 @@ function AdminDashboard() {
                                                 </div>
                                                 <div className="ad-tag-box">
                                                     <span className={`ad-tag-status ${(emp.Status || 'Active').toLowerCase()}`}>{emp.Status || 'Active'}</span>
-                                                    <span className="ad-tag-type">{emp.EmploymentType || 'Confirmed'}</span>
+                                                    <span className="ad-tag-type">{emp.ConfirmationType || 'Confirmed'}</span>
+                                                    <span className="ad-tag-category">{emp.EmploymentType || 'regular'}</span>
                                                 </div>
                                             </div>
-                                                <div className="ad-emp-bottom">
-                                                    <button className="ad-btn-detail" onClick={() => { setSelectedEmployee(emp); setDetailTab("personal"); }}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                                        Detail
-                                                    </button>
-                                                    <button className="ad-btn-excel" onClick={() => handleExcelDownload(empId)}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
-                                                        Excel
-                                                    </button>
-                                                    <button className="ad-btn-remove" onClick={() => deleteEmployee(empId)}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                                        Delete
-                                                    </button>
-                                                </div>
+                                            <div className="ad-emp-bottom">
+                                                <button className="ad-btn-detail" onClick={() => { setSelectedEmployee(emp); setDetailTab("personal"); }}>
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                    Detail
+                                                </button>
+                                                <button className="ad-btn-excel" onClick={() => handleExcelDownload(empId)}>
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+                                                    Excel
+                                                </button>
+                                                <button className="ad-btn-remove" onClick={() => deleteEmployee(empId)}>
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })
@@ -584,6 +585,8 @@ function AdminDashboard() {
                                         <InfoItem label="Career Break" value={selectedEmployee.CareerBreak} />
                                         <InfoItem label="Department" value={selectedEmployee.Department} />
                                         <InfoItem label="Designation" value={selectedEmployee.Designation} />
+                                        <InfoItem label="Confirmation Status" value={selectedEmployee.ConfirmationType || "Probation"} />
+                                        <InfoItem label="Employment Type" value={selectedEmployee.EmploymentType || "regular"} />
                                         <InfoItem label="Date of Joining" value={formatDate(selectedEmployee.DateOfJoining)} />
                                     </div>
                                     <h4 style={{ fontSize: '14px', color: '#475569', marginBottom: '10px' }}>Employment History</h4>

@@ -48,6 +48,7 @@ function EmployeeDashboard() {
   const [employeeData, setEmployeeData] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [viewingDoc, setViewingDoc] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -103,9 +104,24 @@ function EmployeeDashboard() {
   ];
 
   return (
-    <div className="emp-dashboard-container">
+    <div className={`emp-dashboard-container ${isSidebarOpen ? 'sidebar-mobile-active' : ''}`}>
+      {/* Mobile Header */}
+      <div className="mobile-dash-header">
+        <img src="/chn-logo.png" alt="Logo" className="mobile-logo" />
+        <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          {isSidebarOpen ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          )}
+        </button>
+      </div>
+
+      {/* Sidebar Overlay */}
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
       {/* Sidebar */}
-      <aside className="dash-sidebar">
+      <aside className={`dash-sidebar ${isSidebarOpen ? 'active' : ''}`}>
         <div className="brand-section">
           <img src="/chn-logo.png" alt="CHN" />
         </div>
@@ -115,7 +131,10 @@ function EmployeeDashboard() {
             <div
               key={item.id}
               className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                setIsSidebarOpen(false); // Close sidebar on mobile after selection
+              }}
             >
               {item.icon}
               <span>{item.label}</span>

@@ -118,17 +118,17 @@ function ManagerDashboard() {
                 (filterStatus === "Inactive Suspend" && empStatus?.toLowerCase() === 'inactive suspend') ||
                 (filterStatus === "Abscond" && empStatus?.toLowerCase() === 'abscond');
 
-            const empEmploymentType = emp.EmploymentType || emp.employmentType;
-            const matchesEmployment = filterEmploymentType === "All" || (() => {
-                if (empEmploymentType) return (empEmploymentType.toLowerCase() === filterEmploymentType.toLowerCase());
+            const empConfType = emp.ConfirmationType || emp.confirmationType;
+            const matchesConfirmation = filterEmploymentType === "All" || (() => {
+                if (empConfType) return (empConfType.toLowerCase() === filterEmploymentType.toLowerCase());
                 const doj = new Date(emp.DateOfJoining || emp.doj);
                 const threeMonthsAgo = new Date();
                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                 const isProbation = doj > threeMonthsAgo;
-                return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Permanent" && !isProbation);
+                return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Confirmed" && !isProbation);
             })();
 
-            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesEmployment;
+            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesConfirmation;
         })
         .sort((a, b) => {
             if (sortBy === "name") return (a.Name || "").localeCompare(b.Name || "");
@@ -240,7 +240,7 @@ function ManagerDashboard() {
                             <div className="mg-event-text">
                                 <span className="mg-event-label">Team Events This Month:</span>
                                 <span className="mg-event-stats">
-                                    <strong>{getUpcomingBirthdays().length}</strong> Birthdays • 
+                                    <strong>{getUpcomingBirthdays().length}</strong> Birthdays •
                                     <strong>{getWorkAnniversaries().length}</strong> Anniversaries
                                 </span>
                             </div>
@@ -443,8 +443,8 @@ function ManagerDashboard() {
                             <div className="mg-filter-unit">
                                 <label>Confirmation</label>
                                 <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
-                                    <option value="All">All Types</option>
-                                    <option value="Permanent">Confirmed</option>
+                                    <option value="All">All Statuses</option>
+                                    <option value="Confirmed">Confirmed</option>
                                     <option value="Probation">Probation</option>
                                 </select>
                             </div>
@@ -495,7 +495,8 @@ function ManagerDashboard() {
                                                 </div>
                                                 <div className="mg-tag-cloud">
                                                     <span className={`mg-pill-status ${(emp.Status || 'Active').toLowerCase()}`}>{emp.Status || 'Active'}</span>
-                                                    <span className="mg-pill-type">{emp.EmploymentType || 'Confirmed'}</span>
+                                                    <span className="mg-pill-type">{emp.ConfirmationType || 'Confirmed'}</span>
+                                                    <span className="mg-pill-category">{emp.EmploymentType || 'regular'}</span>
                                                 </div>
                                             </div>
                                             <div className="mg-member-actions" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
@@ -620,6 +621,8 @@ function ManagerDashboard() {
                                         <InfoItem label="Career Break" value={selectedEmployee.CareerBreak} />
                                         <InfoItem label="Department" value={selectedEmployee.Department} />
                                         <InfoItem label="Designation" value={selectedEmployee.Designation} />
+                                        <InfoItem label="Confirmation Status" value={selectedEmployee.ConfirmationType || "Probation"} />
+                                        <InfoItem label="Employment Type" value={selectedEmployee.EmploymentType || "regular"} />
                                         <InfoItem label="Date of Joining" value={formatDate(selectedEmployee.DateOfJoining)} />
                                     </div>
                                     <h4 style={{ fontSize: '14px', color: '#475569', marginBottom: '10px' }}>Employment History</h4>

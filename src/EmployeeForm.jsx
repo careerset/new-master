@@ -997,6 +997,17 @@ function EmployeeForm() {
 
   return (
     <div className="onboarding-app">
+      {/* Mobile Top Header */}
+      <div className="mobile-form-header">
+        <div className="mobile-header-top">
+          <img src="/chn-logo.png" alt="Logo" className="mobile-logo-img" />
+          <div className="mobile-step-pill">Step {currentStep} of 6</div>
+        </div>
+        <div className="mobile-progress-track">
+          <div className="mobile-progress-bar" style={{ width: `${(currentStep / 6) * 100}%` }}></div>
+        </div>
+      </div>
+
       {/* Sidebar */}
       <div className="sidebar">
         <div className="sidebar-logo">
@@ -1878,9 +1889,9 @@ function FormGroup({ label, name, type = "text", value, onChange, maxLength, pla
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <label style={{ marginBottom: 0 }}>{label}{required && " *"}</label>
         {type === "file" && existingUrl && (
-          <a 
-            href={getDriveDirectLink(existingUrl)} 
-            target="_blank" 
+          <a
+            href={getDriveDirectLink(existingUrl)}
+            target="_blank"
             rel="noopener noreferrer"
             style={{ fontSize: '12px', color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
           >

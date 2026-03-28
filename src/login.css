@@ -382,11 +382,53 @@
     }
 
     .login-wrapper {
-        max-width: 400px;
+        max-width: 450px;
+        transform: none;
+    }
+
+    .login-wrapper:hover {
+        transform: translateY(-5px);
     }
 
     .login-form-area {
         padding: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        padding: 15px;
+    }
+
+    .login-wrapper {
+        border-radius: 20px;
+    }
+
+    .login-form-area {
+        padding: 30px 20px;
+    }
+
+    .login-card-inner h2 {
+        font-size: 22px;
+        margin-bottom: 30px;
+    }
+
+    .input-group {
+        margin-bottom: 20px;
+    }
+
+    .submit-btn {
+        height: 48px;
+        font-size: 15px;
+    }
+
+    .webcam-wrapper {
+        border-radius: 12px;
+    }
+
+    .scan-frame {
+        width: 160px;
+        height: 160px;
     }
 }
 
