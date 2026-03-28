@@ -387,7 +387,24 @@ function EmployeeForm() {
               esiApplicable: emp.ESIApplicable,
               uanNumber: emp.UAN,
               pfNumber: emp.PF,
-              esiNumber: emp.ESINumber
+              esiNumber: emp.ESINumber,
+              // Existing Documents
+              resumeUrl: emp.Resume,
+              sslcUrl: emp.SSLC,
+              hscUrl: emp.HSC,
+              degreeUrl: emp.DegreeCertificate,
+              diplomaUrl: emp.DiplomaCertificate,
+              pgUrl: emp.PGCertificate,
+              aadharUrl: emp.AadharFile,
+              photoUrl: emp.Photo,
+              aadharFatherUrl: emp.AadharFather,
+              aadharMotherUrl: emp.AadharMother,
+              panUrl: emp.PANFile,
+              bankPassbookUrl: emp.BankPassbook,
+              offerLetterUrl: emp.OfferLetter,
+              experienceLetterUrl: emp.ExperienceLetter,
+              payslipUrl: emp.Payslip,
+              relievingUrl: emp.RelievingLetter
             };
 
             setFormData(newFormData);
@@ -409,7 +426,8 @@ function EmployeeForm() {
               try {
                 const trs = JSON.parse(emp.Trainings).map(t => ({
                   ...t,
-                  period: t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.StartDate || t.EndDate || ""))
+                  period: t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.StartDate || t.EndDate || "")),
+                  certificateUrl: t.certificate || t.certificatePhoto
                 }));
                 setTrainings(trs);
               } catch (e) { }
@@ -418,7 +436,9 @@ function EmployeeForm() {
               try {
                 const deps = JSON.parse(emp.Dependents).map(d => ({
                   ...d,
-                  dob: formatDateForInput(d.dob)
+                  dob: formatDateForInput(d.dob),
+                  photoUrl: d.photo,
+                  aadharUrl: d.aadharPhoto
                 }));
                 setDependents(deps);
               } catch (e) { }
@@ -886,9 +906,9 @@ function EmployeeForm() {
           try {
             const base64 = await fileToBase64(certFile);
             if (base64) {
-              submitData.append(`training_cert_${i}`, base64);
-              submitData.append(`training_cert_name_${i}`, certFile.name);
-              submitData.append(`training_cert_type_${i}`, certFile.type);
+              submitData.append(`trPhoto_${i}`, base64);
+              submitData.append(`trName_${i}`, certFile.name);
+              submitData.append(`trType_${i}`, certFile.type);
             }
           } catch (err) {
             console.error(`Error processing training cert ${i}:`, err);
@@ -907,9 +927,9 @@ function EmployeeForm() {
           try {
             const base64 = await fileToBase64(dep.photo);
             if (base64) {
-              submitData.append(`dep_photo_${i}`, base64);
-              submitData.append(`dep_photo_name_${i}`, dep.photo.name);
-              submitData.append(`dep_photo_type_${i}`, dep.photo.type);
+              submitData.append(`depPhoto_${i}`, base64);
+              submitData.append(`depPhotoName_${i}`, dep.photo.name);
+              submitData.append(`depPhotoType_${i}`, dep.photo.type);
             }
           } catch (err) {
             console.error(`Error processing dep photo ${i}:`, err);
@@ -922,9 +942,9 @@ function EmployeeForm() {
           try {
             const base64 = await fileToBase64(dep.aadharPhoto);
             if (base64) {
-              submitData.append(`dep_aadhar_${i}`, base64);
-              submitData.append(`dep_aadhar_name_${i}`, dep.aadharPhoto.name);
-              submitData.append(`dep_aadhar_type_${i}`, dep.aadharPhoto.type);
+              submitData.append(`depAadhar_${i}`, base64);
+              submitData.append(`depAadharName_${i}`, dep.aadharPhoto.name);
+              submitData.append(`depAadharType_${i}`, dep.aadharPhoto.type);
             }
           } catch (err) {
             console.error(`Error processing dep aadhar ${i}:`, err);
@@ -1484,32 +1504,32 @@ function EmployeeForm() {
             <div className="form-step">
               <h2 className="step-title">Documents</h2>
               <div className="form-card form-grid">
-                <FormGroup label="Personal Photo" type="file" name="photo" onChange={handleFileChange} fileName={files.photo?.name} required />
-                <FormGroup label="Resume / CV" type="file" name="resume" onChange={handleFileChange} fileName={files.resume?.name} required />
-                <FormGroup label="Aadhar Card" type="file" name="aadharSelf" onChange={handleFileChange} fileName={files.aadharSelf?.name} required />
-                <FormGroup label="PAN Card" type="file" name="panSelf" onChange={handleFileChange} fileName={files.panSelf?.name} required />
-                <FormGroup label="SSLC / 10th Marksheet" type="file" name="sslc" onChange={handleFileChange} fileName={files.sslc?.name} required />
-                <FormGroup label="HSC / 12th Marksheet" type="file" name="hsc" onChange={handleFileChange} fileName={files.hsc?.name} required />
-                <FormGroup label="Diploma Certificate" type="file" name="diplomaCertificate" onChange={handleFileChange} fileName={files.diplomaCertificate?.name} required={false} />
-                <FormGroup label="Degree Certificate" type="file" name="degreeCertificate" onChange={handleFileChange} fileName={files.degreeCertificate?.name} required />
-                <FormGroup label="PG Certificate" type="file" name="pgCertificate" onChange={handleFileChange} fileName={files.pgCertificate?.name} required={false} />
-                <FormGroup label="Bank Passbook / Cheque" type="file" name="bankPassbookPhoto" onChange={handleFileChange} fileName={files.bankPassbookPhoto?.name} required />
-                <FormGroup label="Father's Aadhar" type="file" name="aadharFather" onChange={handleFileChange} fileName={files.aadharFather?.name} required />
-                <FormGroup label="Mother's Aadhar" type="file" name="aadharMother" onChange={handleFileChange} fileName={files.aadharMother?.name} required />
+                <FormGroup label="Personal Photo" type="file" name="photo" onChange={handleFileChange} fileName={files.photo?.name} existingUrl={formData.photoUrl} required />
+                <FormGroup label="Resume / CV" type="file" name="resume" onChange={handleFileChange} fileName={files.resume?.name} existingUrl={formData.resumeUrl} required />
+                <FormGroup label="Aadhar Card" type="file" name="aadharSelf" onChange={handleFileChange} fileName={files.aadharSelf?.name} existingUrl={formData.aadharUrl} required />
+                <FormGroup label="PAN Card" type="file" name="panSelf" onChange={handleFileChange} fileName={files.panSelf?.name} existingUrl={formData.panUrl} required />
+                <FormGroup label="SSLC / 10th Marksheet" type="file" name="sslc" onChange={handleFileChange} fileName={files.sslc?.name} existingUrl={formData.sslcUrl} required />
+                <FormGroup label="HSC / 12th Marksheet" type="file" name="hsc" onChange={handleFileChange} fileName={files.hsc?.name} existingUrl={formData.hscUrl} required />
+                <FormGroup label="Diploma Certificate" type="file" name="diplomaCertificate" onChange={handleFileChange} fileName={files.diplomaCertificate?.name} existingUrl={formData.diplomaUrl} required={false} />
+                <FormGroup label="Degree Certificate" type="file" name="degreeCertificate" onChange={handleFileChange} fileName={files.degreeCertificate?.name} existingUrl={formData.degreeUrl} required />
+                <FormGroup label="PG Certificate" type="file" name="pgCertificate" onChange={handleFileChange} fileName={files.pgCertificate?.name} existingUrl={formData.pgUrl} required={false} />
+                <FormGroup label="Bank Passbook / Cheque" type="file" name="bankPassbookPhoto" onChange={handleFileChange} fileName={files.bankPassbookPhoto?.name} existingUrl={formData.bankPassbookUrl} required />
+                <FormGroup label="Father's Aadhar" type="file" name="aadharFather" onChange={handleFileChange} fileName={files.aadharFather?.name} existingUrl={formData.aadharFatherUrl} required />
+                <FormGroup label="Mother's Aadhar" type="file" name="aadharMother" onChange={handleFileChange} fileName={files.aadharMother?.name} existingUrl={formData.aadharMotherUrl} required />
                 {isExperienced && (
                   <>
-                    <FormGroup label="Relieving Letter" type="file" name="relievingLetter" onChange={handleFileChange} fileName={files.relievingLetter?.name} />
-                    <FormGroup label="Experience Letter" type="file" name="experienceLetter" onChange={handleFileChange} fileName={files.experienceLetter?.name} />
-                    <FormGroup label="Latest Payslip" type="file" name="payslip" onChange={handleFileChange} fileName={files.payslip?.name} />
+                    <FormGroup label="Relieving Letter" type="file" name="relievingLetter" onChange={handleFileChange} fileName={files.relievingLetter?.name} existingUrl={formData.relievingUrl} />
+                    <FormGroup label="Experience Letter" type="file" name="experienceLetter" onChange={handleFileChange} fileName={files.experienceLetter?.name} existingUrl={formData.experienceLetterUrl} />
+                    <FormGroup label="Latest Payslip" type="file" name="payslip" onChange={handleFileChange} fileName={files.payslip?.name} existingUrl={formData.payslipUrl} />
                   </>
                 )}
                 {trainings.map((t, idx) => (
-                  <FormGroup key={idx} label={(t.name ? t.name : `Training ${idx + 1}`) + " Certificate Photo"} type="file" name="certificatePhoto" onChange={(e) => handleTrainingFileChange(idx, e)} fileName={t.certificatePhoto?.name} />
+                  <FormGroup key={idx} label={(t.name ? t.name : `Training ${idx + 1}`) + " Certificate Photo"} type="file" name="certificatePhoto" onChange={(e) => handleTrainingFileChange(idx, e)} fileName={t.certificatePhoto?.name} existingUrl={t.certificateUrl} />
                 ))}
                 {dependents.map((dep, idx) => (
                   <div key={idx} style={{ display: 'contents' }}>
-                    <FormGroup label={(dep.name ? dep.name : `Dependent ${idx + 1}`) + " Photo"} type="file" name="photo" onChange={(e) => handleDependentFileChange(idx, e)} fileName={dep.photo?.name} />
-                    <FormGroup label={(dep.name ? dep.name : `Dependent ${idx + 1}`) + " Aadhar"} type="file" name="aadharPhoto" onChange={(e) => handleDependentFileChange(idx, e)} fileName={dep.aadharPhoto?.name} />
+                    <FormGroup label={(dep.name ? dep.name : `Dependent ${idx + 1}`) + " Photo"} type="file" name="photo" onChange={(e) => handleDependentFileChange(idx, e)} fileName={dep.photo?.name} existingUrl={dep.photoUrl} />
+                    <FormGroup label={(dep.name ? dep.name : `Dependent ${idx + 1}`) + " Aadhar"} type="file" name="aadharPhoto" onChange={(e) => handleDependentFileChange(idx, e)} fileName={dep.aadharPhoto?.name} existingUrl={dep.aadharUrl} />
                   </div>
                 ))}
               </div>
@@ -1846,13 +1866,31 @@ function EmployeeForm() {
   );
 }
 
-function FormGroup({ label, name, type = "text", value, onChange, maxLength, placeholder, fileName, required = true }) {
+function FormGroup({ label, name, type = "text", value, onChange, maxLength, placeholder, fileName, existingUrl, required = true }) {
+  const getDriveDirectLink = (url) => {
+    if (!url || !url.includes("drive.google.com")) return url;
+    const fileId = url.split("/d/")[1]?.split("/")[0] || url.split("id=")[1]?.split("&")[0];
+    return fileId ? `https://lh3.googleusercontent.com/u/0/d/${fileId}` : url;
+  };
+
   return (
     <div className="form-group">
-      <label>{label}{required && " *"}</label>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <label style={{ marginBottom: 0 }}>{label}{required && " *"}</label>
+        {type === "file" && existingUrl && (
+          <a 
+            href={getDriveDirectLink(existingUrl)} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ fontSize: '12px', color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
+          >
+            View Current
+          </a>
+        )}
+      </div>
       {type === "file" ? (
         <label className="file-input-label">
-          <input type="file" name={name} onChange={onChange} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg" required={required} />
+          <input type="file" name={name} onChange={onChange} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg" required={required && !existingUrl} />
           <div className="file-box" style={fileName ? { borderColor: '#22c55e', backgroundColor: '#f0fdf4' } : {}}>
             {fileName ? (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
