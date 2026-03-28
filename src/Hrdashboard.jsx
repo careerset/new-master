@@ -30,6 +30,15 @@ const getDriveDirectLink = (url) => {
     return url;
 };
 
+const parseJSON = (jsonString) => {
+    if (!jsonString) return [];
+    try {
+        return typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+    } catch {
+        return [];
+    }
+};
+
 const normalizeDept = (dept) => {
     if (!dept) return "";
     const name = dept.trim();
@@ -711,8 +720,8 @@ function HrDashboard() {
                                 <label>Status</label>
                                 <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                                     <option value="All">All Status</option>
-                                    <option value="Active">Active Only</option>
-                                    <option value="Inactive">Inactive Only</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
                                     <option value="PIP">PIP</option>
                                     <option value="Inactive Suspend">Inactive Suspend</option>
                                     <option value="Abscond">Abscond</option>
@@ -993,32 +1002,43 @@ function HrDashboard() {
                                             </table>
                                         </div>
                                     </div>
-                                    {(selectedEmployee.lastHrName || selectedEmployee.lastMgrName) && (
-                                        <div className="profile-section">
-                                            <h3>Professional Reference - Last Company</h3>
-                                            <div className="profile-grid">
-                                                <InfoItem label="HR Name" value={selectedEmployee.lastHrName} />
-                                                <InfoItem label="HR Contact" value={selectedEmployee.lastHrContact} />
-                                                <InfoItem label="HR Email" value={selectedEmployee.lastHrEmail} />
-                                                <InfoItem label="Manager Name" value={selectedEmployee.lastMgrName} />
-                                                <InfoItem label="Manager Contact" value={selectedEmployee.lastMgrContact} />
-                                                <InfoItem label="Manager Email" value={selectedEmployee.lastMgrEmail} />
-                                            </div>
-                                        </div>
-                                    )}
-                                    {(selectedEmployee.prevHrName || selectedEmployee.prevMgrName) && (
-                                        <div className="profile-section">
-                                            <h3>Professional Reference - Previous Company</h3>
-                                            <div className="profile-grid">
-                                                <InfoItem label="HR Name" value={selectedEmployee.prevHrName} />
-                                                <InfoItem label="HR Contact" value={selectedEmployee.prevHrContact} />
-                                                <InfoItem label="HR Email" value={selectedEmployee.prevHrEmail} />
-                                                <InfoItem label="Manager Name" value={selectedEmployee.prevMgrName} />
-                                                <InfoItem label="Manager Contact" value={selectedEmployee.prevMgrContact} />
-                                                <InfoItem label="Manager Email" value={selectedEmployee.prevMgrEmail} />
-                                            </div>
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        const hasLast = selectedEmployee.LastHrName || selectedEmployee.LastMgrName;
+                                        const hasPrev = selectedEmployee.PrevHrName || selectedEmployee.PrevMgrName;
+                                        
+                                        if (!hasLast && !hasPrev) return null;
+
+                                        return (
+                                            <>
+                                                {hasLast && (
+                                                    <div className="profile-section">
+                                                        <h3>Professional Reference - Last Company</h3>
+                                                        <div className="profile-grid">
+                                                            <InfoItem label="HR Name" value={selectedEmployee.LastHrName} />
+                                                            <InfoItem label="HR Contact" value={selectedEmployee.LastHrContact} />
+                                                            <InfoItem label="HR Email" value={selectedEmployee.LastHrEmail} />
+                                                            <InfoItem label="Manager Name" value={selectedEmployee.LastMgrName} />
+                                                            <InfoItem label="Manager Contact" value={selectedEmployee.LastMgrContact} />
+                                                            <InfoItem label="Manager Email" value={selectedEmployee.LastMgrEmail} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {hasPrev && (
+                                                    <div className="profile-section">
+                                                        <h3>Professional Reference - Previous Company</h3>
+                                                        <div className="profile-grid">
+                                                            <InfoItem label="HR Name" value={selectedEmployee.PrevHrName} />
+                                                            <InfoItem label="HR Contact" value={selectedEmployee.PrevHrContact} />
+                                                            <InfoItem label="HR Email" value={selectedEmployee.PrevHrEmail} />
+                                                            <InfoItem label="Manager Name" value={selectedEmployee.PrevMgrName} />
+                                                            <InfoItem label="Manager Contact" value={selectedEmployee.PrevMgrContact} />
+                                                            <InfoItem label="Manager Email" value={selectedEmployee.PrevMgrEmail} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </>
                             )}
 
@@ -1069,53 +1089,73 @@ function HrDashboard() {
                                 </>
                             )}
 
-                            {detailTab === 'documents' && (
-                                <div className="bento-item bento-full animate-fade">
-                                    <h3 className="section-subtitle">Digital Vault - Verified Documents</h3>
-                                    <div className="doc-bento-grid">
-                                        {[
-                                            ["Profile Photograph", selectedEmployee.Photo, "user"],
-                                            ["Current Resume", selectedEmployee.Resume, "file"],
-                                            ["Identity - Aadhar", selectedEmployee.AadharFile, "shield"],
-                                            ["Tax Card - PAN", selectedEmployee.PANFile, "id-card"],
-                                            ["Academic - SSLC", selectedEmployee.SSLC, "award"],
-                                            ["Academic - HSC", selectedEmployee.HSC, "award"],
-                                            ["Diploma Certificate", selectedEmployee.DiplomaCertificate || selectedEmployee.Diploma, "award"],
-                                            ["Degree Certificate", selectedEmployee.DegreeCertificate || selectedEmployee.Degree, "award"],
-                                            ["Experience Letter", selectedEmployee.ExperienceLetter, "briefcase"],
-                                            ["Latest Payslip", selectedEmployee.Payslip, "credit-card"],
-                                            ["Bank Passbook", selectedEmployee.BankPassbook, "bank"],
-                                            ["Offer Letter", selectedEmployee.OfferLetter, "briefcase"]
-                                        ].map(([lbl, link, icon], i) => (
-                                            <div key={i} className="doc-tile">
-                                                <div className="tile-head">
-                                                    <div className="tile-icon">
-                                                        {lbl.includes("Photo") && link ? (
-                                                            <img src={getDriveDirectLink(link)} alt="Mini" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
-                                                        ) : (
-                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5">
-                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                                <polyline points="14 2 14 8 20 8"></polyline>
-                                                            </svg>
-                                                        )}
+                            {detailTab === 'documents' && (() => {
+                                const emp = selectedEmployee;
+                                const coreDocs = [
+                                    ["Profile Photograph", emp.Photo, "user"],
+                                    ["Current Resume", emp.Resume, "file"],
+                                    ["Identity - Aadhar", emp.AadharFile, "shield"],
+                                    ["Tax Card - PAN", emp.PANFile, "id-card"],
+                                    ["Academic - SSLC", emp.SSLC, "award"],
+                                    ["Academic - HSC", emp.HSC, "award"],
+                                    ["Diploma Certificate", emp.DiplomaCertificate || emp.Diploma, "award"],
+                                    ["Degree Certificate", emp.DegreeCertificate || emp.Degree, "award"],
+                                    ["Post Graduation Certificate", emp.PGCertificate, "award"],
+                                    ["Father's Aadhar", emp.AadharFather, "shield"],
+                                    ["Mother's Aadhar", emp.AadharMother, "shield"],
+                                    ["Experience Letter", emp.ExperienceLetter, "briefcase"],
+                                    ["Latest Payslip", emp.Payslip, "credit-card"],
+                                    ["Bank Passbook", emp.BankPassbook, "bank"],
+                                    ["Offer Letter", emp.OfferLetter, "briefcase"]
+                                ];
+
+                                const dependentDocs = parseJSON(emp.Dependents).flatMap((dep, idx) => [
+                                    [`Dependent ${idx+1} Photo (${dep.name})`, dep.photoUrl, "user"],
+                                    [`Dependent ${idx+1} Aadhar (${dep.name})`, dep.aadharUrl, "shield"],
+                                    [`Dependent ${idx+1} PAN (${dep.name})`, dep.panUrl, "id-card"]
+                                ]).filter(doc => doc[1]);
+
+                                const trainingDocs = parseJSON(emp.Trainings).map((tr, idx) => 
+                                    [`Training: ${tr.name} Certificate`, tr.certificateUrl, "award"]
+                                ).filter(doc => doc[1]);
+
+                                const allDocs = [...coreDocs, ...dependentDocs, ...trainingDocs];
+
+                                return (
+                                    <div className="bento-item bento-full animate-fade">
+                                        <h3 className="section-subtitle">Digital Vault - Verified Documents</h3>
+                                        <div className="doc-bento-grid">
+                                            {allDocs.map(([lbl, link, icon], i) => (
+                                                <div key={i} className="doc-tile">
+                                                    <div className="tile-head">
+                                                        <div className="tile-icon">
+                                                            {(lbl.toLowerCase().includes("photo") || lbl.toLowerCase().includes("photograph")) && link ? (
+                                                                <img src={getDriveDirectLink(link)} alt="Mini" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
+                                                            ) : (
+                                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5">
+                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <div className="tile-meta">
+                                                            <h4>{lbl}</h4>
+                                                            <span className={`tile-status ${link ? 'status-valid' : 'status-missing'}`}>
+                                                                {link ? "VERIFIED" : "PENDING"}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div className="tile-meta">
-                                                        <h4>{lbl}</h4>
-                                                        <span className={`tile-status ${link ? 'status-valid' : 'status-missing'}`}>
-                                                            {link ? "VERIFIED" : "PENDING"}
-                                                        </span>
-                                                    </div>
+                                                    {link ? (
+                                                        <a href={link} target="_blank" rel="noreferrer" className="btn-open">View Original File</a>
+                                                    ) : (
+                                                        <button className="btn-open" disabled style={{ opacity: 0.5, cursor: 'not-allowed', color: '#94a3b8' }}>Unavailable</button>
+                                                    )}
                                                 </div>
-                                                {link ? (
-                                                    <a href={link} target="_blank" rel="noreferrer" className="btn-open">View Original File</a>
-                                                ) : (
-                                                    <button className="btn-open" disabled style={{ opacity: 0.5, cursor: 'not-allowed', color: '#94a3b8' }}>Unavailable</button>
-                                                )}
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                             {detailTab === 'admin' && (
                                 <AdminActionsContent
                                     employee={selectedEmployee}

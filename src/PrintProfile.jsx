@@ -331,6 +331,47 @@ const PrintProfile = ({ employee }) => {
         </table>
       </div>
 
+      {/* PROFESSIONAL REFERENCES */}
+      {(employee.LastHrName || employee.LastMgrName || employee.PrevHrName || employee.PrevMgrName) && (
+        <div className="print-section-new">
+          <div className="section-header">
+            <span className="accent-bar"></span>
+            <h2>Professional References</h2>
+          </div>
+          <table className="print-table bordered-cells">
+            <thead>
+              <tr>
+                <th width="20%">Company</th>
+                <th width="25%">HR Contact</th>
+                <th width="25%">HR Email/Phone</th>
+                <th width="15%">Manager</th>
+                <th width="15%">Mgr Contact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(employee.LastHrName || employee.LastMgrName) && (
+                <tr>
+                  <td style={{ fontWeight: 'bold' }}>Last Company</td>
+                  <td>{employee.LastHrName || "-"}</td>
+                  <td>{employee.LastHrEmail || employee.LastHrContact || "-"}</td>
+                  <td>{employee.LastMgrName || "-"}</td>
+                  <td>{employee.LastMgrContact || "-"}</td>
+                </tr>
+              )}
+              {(employee.PrevHrName || employee.PrevMgrName) && (
+                <tr>
+                  <td style={{ fontWeight: 'bold' }}>Previous Company</td>
+                  <td>{employee.PrevHrName || "-"}</td>
+                  <td>{employee.PrevHrEmail || employee.PrevHrContact || "-"}</td>
+                  <td>{employee.PrevMgrName || "-"}</td>
+                  <td>{employee.PrevMgrContact || "-"}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* DEPENDENT DETAILS */}
       <div className="print-section-new">
         <div className="section-header">

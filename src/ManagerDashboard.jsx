@@ -20,6 +20,26 @@ const formatDate = (dateString) => {
     }
 };
 
+const getDriveDirectLink = (url) => {
+    if (!url) return null;
+    if (url.includes("drive.google.com")) {
+        const id = url.match(/[-\w]{25,}/);
+        if (id) return `https://lh3.googleusercontent.com/u/0/d/${id[0]}`;
+        const ucId = url.split("id=")[1] || url.split("/d/")[1]?.split("/")[0];
+        if (ucId) return `https://drive.google.com/uc?export=view&id=${ucId}`;
+    }
+    return url;
+};
+
+const parseJSON = (jsonString) => {
+    if (!jsonString) return [];
+    try {
+        return typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+    } catch {
+        return [];
+    }
+};
+
 function ManagerDashboard() {
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -655,6 +675,43 @@ function ManagerDashboard() {
                                             </tbody>
                                         </table>
                                     </div>
+                                    {(() => {
+                                        const hasLast = selectedEmployee.LastHrName || selectedEmployee.LastMgrName;
+                                        const hasPrev = selectedEmployee.PrevHrName || selectedEmployee.PrevMgrName;
+                                        
+                                        if (!hasLast && !hasPrev) return null;
+
+                                        return (
+                                            <>
+                                                {hasLast && (
+                                                    <div className="mg-detail-section" style={{ marginTop: '20px' }}>
+                                                        <h4 style={{ fontSize: '14px', color: '#475569', marginBottom: '10px' }}>Professional Reference - Last Company</h4>
+                                                        <div className="mg-detail-grid">
+                                                            <InfoItem label="HR Name" value={selectedEmployee.LastHrName} />
+                                                            <InfoItem label="HR Contact" value={selectedEmployee.LastHrContact} />
+                                                            <InfoItem label="HR Email" value={selectedEmployee.LastHrEmail} />
+                                                            <InfoItem label="Manager Name" value={selectedEmployee.LastMgrName} />
+                                                            <InfoItem label="Manager Contact" value={selectedEmployee.LastMgrContact} />
+                                                            <InfoItem label="Manager Email" value={selectedEmployee.LastMgrEmail} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {hasPrev && (
+                                                    <div className="mg-detail-section" style={{ marginTop: '20px' }}>
+                                                        <h4 style={{ fontSize: '14px', color: '#475569', marginBottom: '10px' }}>Professional Reference - Previous Company</h4>
+                                                        <div className="mg-detail-grid">
+                                                            <InfoItem label="HR Name" value={selectedEmployee.PrevHrName} />
+                                                            <InfoItem label="HR Contact" value={selectedEmployee.PrevHrContact} />
+                                                            <InfoItem label="HR Email" value={selectedEmployee.PrevHrEmail} />
+                                                            <InfoItem label="Manager Name" value={selectedEmployee.PrevMgrName} />
+                                                            <InfoItem label="Manager Contact" value={selectedEmployee.PrevMgrContact} />
+                                                            <InfoItem label="Manager Email" value={selectedEmployee.PrevMgrEmail} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             )}
 
@@ -676,27 +733,52 @@ function ManagerDashboard() {
                             {detailTab === 'documents' && (
                                 <div className="mg-detail-section animate-fade-in">
                                     <h3>Document Verification</h3>
-                                    <div className="mg-credential-wall">
-                                        {[
-                                            ["Photo", selectedEmployee.Photo],
-                                            ["Resume", selectedEmployee.Resume],
-                                            ["Aadhar Card", selectedEmployee.AadharFile],
-                                            ["PAN Card", selectedEmployee.PANFile],
-                                            ["10th Certificate", selectedEmployee.SSLC],
-                                            ["12th Certificate", selectedEmployee.HSC],
-                                            ["UG Certificate", selectedEmployee.DegreeCertificate],
-                                            ["Relieving Letter", selectedEmployee.RelievingLetter || selectedEmployee.Relieving_Letter],
-                                            ["Bank Passbook", selectedEmployee.BankPassbook]
-                                        ].map(([label, url], i) => (
-                                            <div key={i} className={`mg-credential-card ${url ? 'uploaded' : 'missing'}`}>
-                                                <div className="mg-credential-info">
-                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                                    <span>{label}</span>
-                                                </div>
-                                                {url ? <a href={url} target="_blank" rel="noreferrer" className="mg-credential-link">View</a> : <span className="mg-credential-empty">None</span>}
+                                    {(() => {
+                                        const emp = selectedEmployee;
+                                        const coreDocs = [
+                                            ["Photo", emp.Photo],
+                                            ["Resume", emp.Resume],
+                                            ["Aadhar Card", emp.AadharFile],
+                                            ["PAN Card", emp.PANFile],
+                                            ["10th Certificate", emp.SSLC],
+                                            ["12th Certificate", emp.HSC],
+                                            ["UG Certificate", emp.DegreeCertificate],
+                                            ["Diploma Certificate", emp.DiplomaCertificate],
+                                            ["PG Certificate", emp.PGCertificate],
+                                            ["Father's Aadhar", emp.AadharFather],
+                                            ["Mother's Aadhar", emp.AadharMother],
+                                            ["Exp/Relieving Letter", emp.ExperienceLetter],
+                                            ["Bank Passbook", emp.BankPassbook],
+                                            ["Offer Letter", emp.OfferLetter],
+                                            ["Payslip", emp.Payslip]
+                                        ];
+
+                                        const dependentDocs = parseJSON(emp.Dependents).flatMap((dep, idx) => [
+                                            [`Dep. ${idx+1} Photo`, dep.photoUrl],
+                                            [`Dep. ${idx+1} Aadhar`, dep.aadharUrl],
+                                            [`Dep. ${idx+1} PAN`, dep.panUrl]
+                                        ]).filter(doc => doc[1]);
+
+                                        const trainingDocs = parseJSON(emp.Trainings).map((tr, idx) => 
+                                            [`Training: ${tr.name}`, tr.certificateUrl]
+                                        ).filter(doc => doc[1]);
+
+                                        const allDocs = [...coreDocs, ...dependentDocs, ...trainingDocs];
+
+                                        return (
+                                            <div className="mg-credential-wall">
+                                                {allDocs.map(([label, url], i) => (
+                                                    <div key={i} className={`mg-credential-card ${url ? 'uploaded' : 'missing'}`}>
+                                                        <div className="mg-credential-info">
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                                            <span>{label}</span>
+                                                        </div>
+                                                        {url ? <a href={url} target="_blank" rel="noreferrer" className="mg-credential-link">View</a> : <span className="mg-credential-empty">None</span>}
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
                         </div>

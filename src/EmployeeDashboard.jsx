@@ -419,51 +419,107 @@ function EmployeeDashboard() {
                 </table>
               </div>
             </div>
+
+            {(() => {
+              const hasLast = emp.LastHrName || emp.LastMgrName;
+              const hasPrev = emp.PrevHrName || emp.PrevMgrName;
+              if (!hasLast && !hasPrev) return null;
+
+              return (
+                <>
+                  {hasLast && (
+                    <div className="bento-item bento-full" style={{ marginTop: '20px' }}>
+                      <h3 className="section-subtitle">Professional Reference - Last Company</h3>
+                      <div className="protocol-strip-container" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', background: 'rgba(255,255,255,0.5)', padding: '15px', borderRadius: '15px' }}>
+                        <ProtocolStrip icon="👤" label="HR Name" value={emp.LastHrName} />
+                        <ProtocolStrip icon="📞" label="HR Contact" value={emp.LastHrContact} />
+                        <ProtocolStrip icon="📧" label="HR Email" value={emp.LastHrEmail} />
+                        <ProtocolStrip icon="👤" label="Manager Name" value={emp.LastMgrName} />
+                        <ProtocolStrip icon="📞" label="Manager Contact" value={emp.LastMgrContact} />
+                        <ProtocolStrip icon="📧" label="Manager Email" value={emp.LastMgrEmail} />
+                      </div>
+                    </div>
+                  )}
+                  {hasPrev && (
+                    <div className="bento-item bento-full" style={{ marginTop: '20px' }}>
+                      <h3 className="section-subtitle">Professional Reference - Previous Company</h3>
+                      <div className="protocol-strip-container" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', background: 'rgba(255,255,255,0.5)', padding: '15px', borderRadius: '15px' }}>
+                        <ProtocolStrip icon="👤" label="HR Name" value={emp.PrevHrName} />
+                        <ProtocolStrip icon="📞" label="HR Contact" value={emp.PrevHrContact} />
+                        <ProtocolStrip icon="📧" label="HR Email" value={emp.PrevHrEmail} />
+                        <ProtocolStrip icon="👤" label="Manager Name" value={emp.PrevMgrName} />
+                        <ProtocolStrip icon="📞" label="Manager Contact" value={emp.PrevMgrContact} />
+                        <ProtocolStrip icon="📧" label="Manager Email" value={emp.PrevMgrEmail} />
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
-        {activeTab === "documents" && (
-          <div className="bento-item bento-full animate-fade">
-            <h3 className="section-subtitle">Digital Vault - Verified Documents</h3>
-            <div className="doc-bento-grid">
-              {[
-                ["Profile Photograph", emp.Photo, "user"],
-                ["Current Resume", emp.Resume, "file"],
-                ["Identity - Aadhar", emp.AadharFile, "shield"],
-                ["Tax Card - PAN", emp.PANFile, "id-card"],
-                ["Academic - SSLC", emp.SSLC, "award"],
-                ["Academic - HSC", emp.HSC, "award"],
-                ["Diploma Certificate", emp.DiplomaCertificate || emp.Diploma, "award"],
-                ["Degree Certificate", emp.DegreeCertificate || emp.Degree, "award"],
-                ["Experience Letter", emp.ExperienceLetter, "briefcase"],
-                ["Latest Payslip", emp.Payslip, "credit-card"],
-                ["Bank Passbook", emp.BankPassbook, "bank"],
-                ["Offer Letter", emp.OfferLetter, "briefcase"]
-              ].map(([lbl, link, icon], i) => (
-                <div key={i} className="doc-tile">
-                  <div className="tile-head">
-                    <div className="tile-icon">
-                      {lbl.includes("Photo") && link ? (
-                        <img src={getDriveDirectLink(link)} alt="Mini" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
-                      ) : (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                      )}
+        {activeTab === "documents" && (() => {
+          const coreDocs = [
+            ["Profile Photograph", emp.Photo, "user"],
+            ["Current Resume", emp.Resume, "file"],
+            ["Identity - Aadhar", emp.AadharFile, "shield"],
+            ["Tax Card - PAN", emp.PANFile, "id-card"],
+            ["Academic - SSLC", emp.SSLC, "award"],
+            ["Academic - HSC", emp.HSC, "award"],
+            ["Diploma Certificate", emp.DiplomaCertificate || emp.Diploma, "award"],
+            ["Degree Certificate", emp.DegreeCertificate || emp.Degree, "award"],
+            ["Post Graduation Certificate", emp.PGCertificate, "award"],
+            ["Father's Aadhar", emp.AadharFather, "shield"],
+            ["Mother's Aadhar", emp.AadharMother, "shield"],
+            ["Experience Letter", emp.ExperienceLetter, "briefcase"],
+            ["Latest Payslip", emp.Payslip, "credit-card"],
+            ["Bank Passbook", emp.BankPassbook, "bank"],
+            ["Offer Letter", emp.OfferLetter, "briefcase"]
+          ];
+
+          const dependentDocs = parseJSON(emp.Dependents).flatMap((dep, idx) => [
+            [`Dependent ${idx+1} Photo (${dep.name})`, dep.photoUrl, "user"],
+            [`Dependent ${idx+1} Aadhar (${dep.name})`, dep.aadharUrl, "shield"],
+            [`Dependent ${idx+1} PAN (${dep.name})`, dep.panUrl, "id-card"]
+          ]).filter(doc => doc[1]);
+
+          const trainingDocs = parseJSON(emp.Trainings).map((tr, idx) => 
+            [`Training: ${tr.name} Certificate`, tr.certificateUrl, "award"]
+          ).filter(doc => doc[1]);
+
+          const allDocs = [...coreDocs, ...dependentDocs, ...trainingDocs];
+
+          return (
+            <div className="bento-item bento-full animate-fade">
+              <h3 className="section-subtitle">Digital Vault - Verified Documents</h3>
+              <div className="doc-bento-grid">
+                {allDocs.map(([lbl, link, icon], i) => (
+                  <div key={i} className="doc-tile">
+                    <div className="tile-head">
+                      <div className="tile-icon">
+                        {(lbl.toLowerCase().includes("photo") || lbl.toLowerCase().includes("photograph")) && link ? (
+                          <img src={getDriveDirectLink(link)} alt="Mini" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
+                        ) : (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        )}
+                      </div>
+                      <div className="tile-meta">
+                        <h4>{lbl}</h4>
+                        <span className={`tile-status ${link ? 'status-valid' : 'status-missing'}`}>{link ? "VERIFIED" : "UNAVAILABLE"}</span>
+                      </div>
                     </div>
-                    <div className="tile-meta">
-                      <h4>{lbl}</h4>
-                      <span className={`tile-status ${link ? 'status-valid' : 'status-missing'}`}>{link ? "VERIFIED" : "UNAVAILABLE"}</span>
-                    </div>
+                    {link ? (
+                      <a href={link} target="_blank" rel="noreferrer" className="btn-open">View Original File</a>
+                    ) : (
+                      <button className="btn-open" disabled style={{ opacity: 0.5, cursor: 'not-allowed', color: '#94a3b8' }}>Pending Task</button>
+                    )}
                   </div>
-                  {link ? (
-                    <a href={link} target="_blank" rel="noreferrer" className="btn-open">View Original File</a>
-                  ) : (
-                    <button className="btn-open" disabled style={{ opacity: 0.5, cursor: 'not-allowed', color: '#94a3b8' }}>Pending Task</button>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeTab === "books" && (
           <div className="bento-item bento-full animate-fade">
