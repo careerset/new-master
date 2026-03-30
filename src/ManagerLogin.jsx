@@ -18,6 +18,7 @@ function ManagerLogin() {
 
     if (username.trim() === defaultUsername && password.trim() === defaultPassword) {
       localStorage.setItem("managerLoggedIn", "true");
+      localStorage.setItem("loginTime", Date.now().toString());
       navigate("/manager-dashboard");
     } else {
       alert("Invalid Username or Password");

@@ -18,7 +18,8 @@ function SuperUserLogin() {
 
     if (username.trim() === defaultUsername && password.trim() === defaultPassword) {
       localStorage.setItem("superuserLoggedIn", "true");
-      navigate("/superuserdashboard");
+      localStorage.setItem("loginTime", Date.now().toString());
+      navigate("/admin-dashboard");
     } else {
       alert("Invalid Username or Password");
     }

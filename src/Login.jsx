@@ -134,6 +134,7 @@ function EmployeeLogin() {
         // Directly login if no face scan profile is found
         localStorage.setItem("employeeLoggedIn", "true");
         localStorage.setItem("employeeId", data.employeeId);
+        localStorage.setItem("loginTime", Date.now().toString());
         navigate("/employee-dashboard");
       } else {
         alert(data.message || "Invalid Email or Password");
@@ -261,6 +262,7 @@ function EmployeeLogin() {
         setTimeout(() => {
           localStorage.setItem("employeeLoggedIn", "true");
           localStorage.setItem("employeeId", tempEmployeeId);
+          localStorage.setItem("loginTime", Date.now().toString());
           stopCamera();
           navigate("/employee-dashboard");
         }, 1500);
@@ -347,6 +349,7 @@ function EmployeeLogin() {
           alert("Verification Successful! Accessing Dashboard.");
           localStorage.setItem("employeeLoggedIn", "true");
           localStorage.setItem("employeeId", tempEmployeeId);
+          localStorage.setItem("loginTime", Date.now().toString());
           navigate("/employee-dashboard");
         }
       } else {

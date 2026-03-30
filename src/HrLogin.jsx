@@ -18,6 +18,7 @@ function HrLogin() {
 
     if (username.trim() === defaultUsername && password.trim() === defaultPassword) {
       localStorage.setItem("hrLoggedIn", "true");
+      localStorage.setItem("loginTime", Date.now().toString());
       navigate("/hr-dashboard");
     } else {
       alert("Invalid Username or Password");

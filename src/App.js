@@ -12,21 +12,25 @@ import ManagerDashboard from './ManagerDashboard';
 import AdminDashboard from './AdminDashboard';
 
 
+import SessionManager from './SessionManager';
+
 function App() {
     return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
-        <Route path="/employee-form" element={<EmployeeForm />} />
-        <Route path="/hr-dashboard" element={<HrDashboard />} />
-        <Route path="/hr-login" element={<HrLogin />} />
-        <Route path="/manager-login" element={<ManagerLogin />} />
-        <Route path="/manager-dashboard" element={<ManagerDashboard />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
-      </Routes>
+      <SessionManager>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+          <Route path="/employee-form" element={<EmployeeForm />} />
+          <Route path="/hr-dashboard" element={<HrDashboard />} />
+          <Route path="/hr-login" element={<HrLogin />} />
+          <Route path="/manager-login" element={<ManagerLogin />} />
+          <Route path="/manager-dashboard" element={<ManagerDashboard />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        </Routes>
+      </SessionManager>
     </Router>
   );
 }
