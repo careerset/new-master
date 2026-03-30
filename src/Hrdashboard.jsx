@@ -49,9 +49,10 @@ const normalizeDept = (dept) => {
 
 function AdminActionsContent({ employee, onUpdate }) {
     const [status, setStatus] = useState(employee.Status || "Active");
-    const [confType, setConfType] = useState(employee.ConfirmationType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
     const [empType, setEmpType] = useState(employee.EmploymentType || "regular");
 
+    const [confType, setConfType] = useState(employee.ConfirmationType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
+    
     return (
         <div className="profile-section" style={{ border: '2px dashed #fecaca', padding: '25px', borderRadius: '16px', background: '#fffafb' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
@@ -75,18 +76,7 @@ function AdminActionsContent({ employee, onUpdate }) {
                         <option value="Abscond">Abscond</option>
                     </select>
                 </div>
-                <div className="info-item">
-                    <label>Confirmation Status</label>
-                    <select
-                        value={confType}
-                        onChange={(e) => setConfType(e.target.value)}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
-                    >
-                        <option value="Probation">Probation</option>
-                        <option value="Confirmed">Confirmed</option>
-                    </select>
-                </div>
-                <div className="info-item">
+                  <div className="info-item">
                     <label>Employment Type</label>
                     <select
                         value={empType}
@@ -101,13 +91,33 @@ function AdminActionsContent({ employee, onUpdate }) {
                         <option value="other">Other</option>
                     </select>
                 </div>
+                {empType === "regular" && (
+                    <div className="info-item">
+                        <label>Confirmation Status</label>
+                        <select
+                            value={confType}
+                            onChange={(e) => setConfType(e.target.value)}
+                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}
+                        >
+                            <option value="Probation">Probation</option>
+                            <option value="Confirmed">Confirmed</option>
+                        </select>
+                    </div>
+                )}
+              
             </div>
 
             <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                     className="hr-btn-icon"
                     style={{ background: '#ef4444', width: 'auto', padding: '12px 30px' }}
-                    onClick={() => onUpdate({ Status: status, ConfirmationType: confType, EmploymentType: empType })}
+                    onClick={() => {
+                        const updateData = { Status: status, EmploymentType: empType };
+                        if (empType === "regular") {
+                            updateData.ConfirmationType = confType;
+                        }
+                        onUpdate(updateData);
+                    }}
                 >
                     Apply Changes
                 </button>
@@ -297,7 +307,7 @@ function HrDashboard() {
             })();
 
             const empEmploymentType = emp.EmploymentType || emp.employmentType;
-            const matchesCategory = filterEmploymentType === "All" || (filterEmploymentCategory === "All" || (empEmploymentType?.toLowerCase() === filterEmploymentCategory.toLowerCase()));
+            const matchesCategory = filterEmploymentCategory === "All" || (empEmploymentType?.toLowerCase() === filterEmploymentCategory.toLowerCase());
 
             return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesConfirmation && matchesCategory;
         })
@@ -727,14 +737,6 @@ function HrDashboard() {
                                     <option value="Abscond">Abscond</option>
                                 </select>
                             </div>
-                             <div className="filter-group">
-                                <label>Confirmation Status</label>
-                                <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
-                                    <option value="All">All Statuses</option>
-                                    <option value="Confirmed">Confirmed</option>
-                                    <option value="Probation">Probation</option>
-                                </select>
-                            </div>
                             <div className="filter-group">
                                 <label>Employment Type</label>
                                 <select value={filterEmploymentCategory} onChange={(e) => setFilterEmploymentCategory(e.target.value)}>
@@ -745,6 +747,14 @@ function HrDashboard() {
                                     <option value="Intern">Intern</option>
                                     <option value="Consultant">Consultant</option>
                                     <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>Confirmation Status</label>
+                                <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
+                                    <option value="All">All Statuses</option>
+                                    <option value="Confirmed">Confirmed</option>
+                                    <option value="Probation">Probation</option>
                                 </select>
                             </div>
                             <div className="filter-group">
@@ -1005,7 +1015,7 @@ function HrDashboard() {
                                     {(() => {
                                         const hasLast = selectedEmployee.LastHrName || selectedEmployee.LastMgrName;
                                         const hasPrev = selectedEmployee.PrevHrName || selectedEmployee.PrevMgrName;
-                                        
+
                                         if (!hasLast && !hasPrev) return null;
 
                                         return (
@@ -1110,12 +1120,12 @@ function HrDashboard() {
                                 ];
 
                                 const dependentDocs = parseJSON(emp.Dependents).flatMap((dep, idx) => [
-                                    [`Dependent ${idx+1} Photo (${dep.name})`, dep.photoUrl, "user"],
-                                    [`Dependent ${idx+1} Aadhar (${dep.name})`, dep.aadharUrl, "shield"],
-                                    [`Dependent ${idx+1} PAN (${dep.name})`, dep.panUrl, "id-card"]
+                                    [`Dependent ${idx + 1} Photo (${dep.name})`, dep.photoUrl, "user"],
+                                    [`Dependent ${idx + 1} Aadhar (${dep.name})`, dep.aadharUrl, "shield"],
+                                    [`Dependent ${idx + 1} PAN (${dep.name})`, dep.panUrl, "id-card"]
                                 ]).filter(doc => doc[1]);
 
-                                const trainingDocs = parseJSON(emp.Trainings).map((tr, idx) => 
+                                const trainingDocs = parseJSON(emp.Trainings).map((tr, idx) =>
                                     [`Training: ${tr.name} Certificate`, tr.certificateUrl, "award"]
                                 ).filter(doc => doc[1]);
 

@@ -40,6 +40,63 @@ const parseJSON = (jsonString) => {
     }
 };
 
+function AdminActionsContent({ employee, onUpdate }) {
+    const [status, setStatus] = useState(employee.Status || "Active");
+    const [empType, setEmpType] = useState(employee.EmploymentType || "regular");
+    const [confType, setConfType] = useState(employee.ConfirmationType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
+
+    return (
+        <div className="mg-detail-section animate-fade-in">
+            <h3 style={{ color: '#ef4444', borderBottom: '2px solid #fee2e2', paddingBottom: '10px', marginBottom: '20px' }}>Managerial Oversight</h3>
+            <div className="mg-detail-grid" style={{ background: '#fff1f2', padding: '20px', borderRadius: '12px', border: '1px solid #fecaca' }}>
+                <div className="mg-info-item">
+                    <label>Employee Status</label>
+                    <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="PIP">PIP</option>
+                        <option value="Inactive Suspend">Inactive Suspend</option>
+                        <option value="Abscond">Abscond</option>
+                    </select>
+                </div>
+                <div className="mg-info-item">
+                    <label>Employment Type</label>
+                    <select value={empType} onChange={(e) => setEmpType(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                        <option value="regular">Regular</option>
+                        <option value="contract">Contract</option>
+                        <option value="training">Training</option>
+                        <option value="intern">Intern</option>
+                        <option value="consultant">Consultant</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                {empType === "regular" && (
+                    <div className="mg-info-item">
+                        <label>Confirmation Status</label>
+                        <select value={confType} onChange={(e) => setConfType(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                            <option value="Probation">Probation</option>
+                            <option value="Confirmed">Confirmed</option>
+                        </select>
+                    </div>
+                )}
+            </div>
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                    className="mg-cmd-btn"
+                    style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', width: 'auto', padding: '12px 30px' }}
+                    onClick={() => {
+                        const updateData = { Status: status, EmploymentType: empType };
+                        if (empType === "regular") updateData.ConfirmationType = confType;
+                        onUpdate(updateData);
+                    }}
+                >
+                    Apply Changes
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function ManagerDashboard() {
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -50,6 +107,7 @@ function ManagerDashboard() {
     const [filterGender, setFilterGender] = useState("All");
     const [filterStatus, setFilterStatus] = useState("All");
     const [filterEmploymentType, setFilterEmploymentType] = useState("All");
+    const [filterEmploymentCategory, setFilterEmploymentCategory] = useState("All");
     const [detailTab, setDetailTab] = useState("personal");
     const [sortBy, setSortBy] = useState("name");
     const [uniqueDepts, setUniqueDepts] = useState([]);
@@ -148,7 +206,10 @@ function ManagerDashboard() {
                 return (filterEmploymentType === "Probation" && isProbation) || (filterEmploymentType === "Confirmed" && !isProbation);
             })();
 
-            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesConfirmation;
+            const empEmploymentType = emp.EmploymentType || emp.employmentType;
+            const matchesCategory = filterEmploymentCategory === "All" || (empEmploymentType?.toLowerCase() === filterEmploymentCategory.toLowerCase());
+
+            return matchesSearch && matchesDept && matchesGender && matchesStatus && matchesConfirmation && matchesCategory;
         })
         .sort((a, b) => {
             if (sortBy === "name") return (a.Name || "").localeCompare(b.Name || "");
@@ -195,7 +256,6 @@ function ManagerDashboard() {
     //     const url = `${SCRIPT_URL}?action=downloadDocs&empId=${empId}&name=${name}`;
     //     window.open(url, "_blank");
     // };
-
     const handleExcelDownload = async (empId) => {
         try {
             const res = await fetch(`${SCRIPT_URL}?action=downloadExcel&empId=${empId}`);
@@ -208,6 +268,40 @@ function ManagerDashboard() {
         } catch (err) {
             console.error(err);
             alert("Error downloading file");
+        }
+    };
+
+    const handleUpdateStatus = async (empId, fields) => {
+        try {
+            setLoading(true);
+            const formData = new URLSearchParams();
+            formData.append("action", "updateEmployee");
+            formData.append("empId", empId);
+
+            Object.keys(fields).forEach(key => {
+                formData.append(key, fields[key]);
+            });
+
+            const res = await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (data.status === "success") {
+                alert("Status updated successfully");
+                loadEmployees();
+                if (selectedEmployee && (selectedEmployee.EmpID || selectedEmployee.employee_code) === empId) {
+                    setSelectedEmployee({ ...selectedEmployee, ...fields });
+                }
+            } else {
+                alert("Error updating status: " + data.message);
+            }
+        } catch (err) {
+            console.error("Update Status Error:", err);
+            alert("Failed to update status");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -461,7 +555,19 @@ function ManagerDashboard() {
                                 </select>
                             </div>
                             <div className="mg-filter-unit">
-                                <label>Confirmation</label>
+                                <label>Employment Type</label>
+                                <select value={filterEmploymentCategory} onChange={(e) => setFilterEmploymentCategory(e.target.value)}>
+                                    <option value="All">All Types</option>
+                                    <option value="Regular">Regular</option>
+                                    <option value="Contract">Contract</option>
+                                    <option value="Training">Trainer</option>
+                                    <option value="Intern">Intern</option>
+                                    <option value="Consultant">Consultant</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div className="mg-filter-unit">
+                                <label>Confirmation Status</label>
                                 <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
                                     <option value="All">All Statuses</option>
                                     <option value="Confirmed">Confirmed</option>
@@ -566,6 +672,7 @@ function ManagerDashboard() {
                             <button className={`mg-modal-pill-item ${detailTab === 'experience' ? 'active' : ''}`} onClick={() => setDetailTab('experience')}>Experience</button>
                             <button className={`mg-modal-pill-item ${detailTab === 'statutory' ? 'active' : ''}`} onClick={() => setDetailTab('statutory')}>Statutory</button>
                             <button className={`mg-modal-pill-item ${detailTab === 'documents' ? 'active' : ''}`} onClick={() => setDetailTab('documents')}>Documents</button>
+                            <button className={`mg-modal-pill-item ${detailTab === 'admin' ? 'active' : ''}`} style={{ color: '#ef4444' }} onClick={() => setDetailTab('admin')}>Admin Actions</button>
                         </div>
 
                         <div className="mg-modal-body-scroll">
@@ -780,6 +887,12 @@ function ManagerDashboard() {
                                         );
                                     })()}
                                 </div>
+                            )}
+                            {detailTab === 'admin' && (
+                                <AdminActionsContent
+                                    employee={selectedEmployee}
+                                    onUpdate={(fields) => handleUpdateStatus(selectedEmployee.EmpID || selectedEmployee.employee_code, fields)}
+                                />
                             )}
                         </div>
 
