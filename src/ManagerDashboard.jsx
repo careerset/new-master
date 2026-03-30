@@ -1157,21 +1157,6 @@ function StatCardV2({ label, value, percentage, icon, color, onClick }) {
     );
 }
 
-function StatusItem({ label, count, total, color }) {
-    const percent = total > 0 ? (count / total) * 100 : 0;
-    return (
-        <div className="mg-status-row">
-            <div className="mg-status-label-wrap">
-                <div className="mg-status-indicator" style={{ '--dot-color': color }}></div>
-                <div className="mg-status-label">{label}</div>
-            </div>
-            <div className="mg-progress-bg">
-                <div className="mg-progress-fill" style={{ width: `${percent}%`, background: color }}></div>
-            </div>
-            <div className="mg-progress-val">{count}</div>
-        </div>
-    );
-}
 
 function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
