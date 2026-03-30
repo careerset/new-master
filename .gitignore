@@ -28,3 +28,6 @@ documentation.md
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Backend scripts
+src/backend/
