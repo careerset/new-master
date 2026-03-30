@@ -276,12 +276,12 @@ function EmployeeForm() {
     { name: "", dob: "", relation: "", aadharNumber: "", aadharPhoto: null, photo: null }
   ]);
   const [trainings, setTrainings] = useState([
-    { name: "", institute: "", period: "", certificatePhoto: null }
+    { name: "", institute: "", duration: "", certificatePhoto: null }
   ]);
 
   const excelInputRef = useRef(null);
   const [employmentHistory, setEmploymentHistory] = useState([
-    { organization: "", designation: "", startDate: "", endDate: "", salary: "", nature: "", reason: "" }
+    { organization: "", designation: "", duration: "", salary: "", nature: "", reason: "" }
   ]);
   const [educationHistory, setEducationHistory] = useState([
     { level: "", institution: "", yearOfPassing: "", score: "" }
@@ -360,17 +360,17 @@ function EmployeeForm() {
               "12thPercent": emp["12thPercent"],
               "12thBoard": emp["12thBoard"],
               DiplomaDegree: emp.DiplomaDegree,
-              DiplomaSpecialization: emp.DiplomaSpecialization,
+              DiplomaSpecialization: emp.DiplomaSpecialization || emp.DiplomaSpecification,
               DiplomaCollege: emp.DiplomaCollege,
               DiplomaYear: emp.DiplomaYear,
               DiplomaPercent: emp.DiplomaPercent,
               UGDegree: emp.UGDegree,
-              UGSpecialization: emp.UGSpecification || emp.UGSpecialization,
+              UGSpecification: emp.UGSpecification || emp.UGSpecialization,
               UGCollege: emp.UGCollege,
               UGYear: emp.UGYear,
               UGPercent: emp.UGPercent,
               PGDegree: emp.PGDegree,
-              PGSpecialization: emp.PGSpecification || emp.PGSpecialization,
+              PGSpecification: emp.PGSpecification || emp.PGSpecialization,
               PGCollege: emp.PGCollege,
               PGYear: emp.PGYear,
               PGPercent: emp.PGPercent,
@@ -426,7 +426,7 @@ function EmployeeForm() {
               try {
                 const trs = JSON.parse(emp.Trainings).map(t => ({
                   ...t,
-                  period: t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.StartDate || t.EndDate || "")),
+                  duration: t.duration || t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.StartDate || t.EndDate || "")),
                   certificateUrl: t.certificate || t.certificatePhoto
                 }));
                 setTrainings(trs);
@@ -576,7 +576,7 @@ function EmployeeForm() {
   };
 
   const addTrainingRow = () => {
-    setTrainings([...trainings, { name: "", institute: "", period: "", certificatePhoto: null }]);
+    setTrainings([...trainings, { name: "", institute: "", duration: "", certificatePhoto: null }]);
   };
 
   const handleEmploymentChange = (index, e) => {
@@ -588,7 +588,7 @@ function EmployeeForm() {
   };
 
   const addEmploymentRow = () => {
-    setEmploymentHistory([...employmentHistory, { organization: "", designation: "", startDate: "", endDate: "", salary: "", nature: "", reason: "" }]);
+    setEmploymentHistory([...employmentHistory, { organization: "", designation: "", duration: "", salary: "", nature: "", reason: "" }]);
   };
 
   const uploadSingleRow = async (rowObj, index, total) => {
@@ -599,6 +599,7 @@ function EmployeeForm() {
       Object.keys(rowObj).forEach(key => {
         if (rowObj[key] !== undefined) submitData.append(key, rowObj[key]);
       });
+
       submitData.append("trainings", "[]");
       submitData.append("employments", "[]");
       submitData.append("dependents", "[]");
@@ -705,8 +706,9 @@ function EmployeeForm() {
           "10thboard": "10thBoard", "12thboard": "12thBoard",
           "diplomadegree": "DiplomaDegree", "diplomacollege": "DiplomaCollege",
           "diplomayear": "DiplomaYear", "diplomapercentage": "DiplomaPercent",
-          "diplomaspecialization": "DiplomaSpecialization",
-          "ugspecialization": "UGSpecialization", "pgspecialization": "PGSpecialization"
+          "diplomaspecialization": "DiplomaSpecialization", "diplomaspecification": "DiplomaSpecialization",
+          "ugspecialization": "UGSpecification", "ugspecification": "UGSpecification",
+          "pgspecialization": "PGSpecification", "pgspecification": "PGSpecification"
         };
 
         if (rows.length > 2) {
@@ -751,9 +753,9 @@ function EmployeeForm() {
       "Account Number", "Bank Name", "IFSC Code", "UAN Number", "PF Number",
       "10th School", "10th Year", "10th Percentage", "10th Board",
       "12th School", "12th Year", "12th Percentage", "12th Board",
-      "UG Degree", "UG Specialization", "UG College", "UG Year", "UG Percentage",
-      "Diploma Degree", "Diploma Specialization", "Diploma College", "Diploma Year", "Diploma Percentage",
-      "PG Degree", "PG Specialization", "PG College", "PG Year", "PG Percentage",
+      "UG Degree", "UG Specification", "UG College", "UG Year", "UG Percentage",
+      "Diploma Degree", "Diploma Specification", "Diploma College", "Diploma Year", "Diploma Percentage",
+      "PG Degree", "PG Specification", "PG College", "PG Year", "PG Percentage",
       "Dependent 1 Name", "Dependent 1 Relation", "Dependent 1 DOB", "Dependent 1 Aadhar"
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers]);
@@ -831,10 +833,18 @@ function EmployeeForm() {
       submitData.append("trainings", JSON.stringify(trainings.map(t => ({
         name: t.name,
         institute: t.institute,
-        StartDate: t.StartDate,
-        EndDate: t.EndDate
+        duration: t.duration,
+        // Fallback for older systems that check for specific period keys
+        period: t.duration,
+        StartDate: t.duration?.split(' - ')[0] || t.duration,
+        EndDate: t.duration?.split(' - ')[1] || ""
       }))));
-      submitData.append("employments", JSON.stringify(employmentHistory));
+      submitData.append("employments", JSON.stringify(employmentHistory.map(e => ({
+        ...e,
+        // Ensure both period/duration keys are present for backward compatibility
+        period: e.duration,
+        duration: e.duration
+      }))));
       submitData.append("dependents", JSON.stringify(dependents.map(d => ({
         name: d.name,
         dob: d.dob,
@@ -1613,7 +1623,7 @@ function EmployeeForm() {
                   <h3 className="section-heading">Diploma OR ITI (Optional)</h3>
                   <div className="form-grid">
                     <FormGroup label="Diploma OR ITI Degree" name="DiplomaDegree" value={formData.DiplomaDegree} onChange={handleChange} required={false} />
-                    <FormGroup label="Specialization" name="DiplomaSpecialization" value={formData.DiplomaSpecialization} onChange={handleChange} placeholder="e.g. Electrical Engineering" required={false} />
+                    <FormGroup label="Specialization / Specification" name="DiplomaSpecialization" value={formData.DiplomaSpecialization} onChange={handleChange} placeholder="e.g. Electrical Engineering" required={false} />
                     <div className="form-group">
                       <label>Institution/University</label>
                       <select name="DiplomaCollege" value={TAMIL_NADU_COLLEGES.includes(formData.DiplomaCollege) ? formData.DiplomaCollege : (formData.DiplomaCollege ? "Other" : "")} onChange={(e) => {
@@ -1653,7 +1663,7 @@ function EmployeeForm() {
                   <h3 className="section-heading">Undergraduate (UG)</h3>
                   <div className="form-grid">
                     <FormGroup label="Degree " name="UGDegree" value={formData.UGDegree} onChange={handleChange} required={false} />
-                    <FormGroup label="Specialization (Major)" name="UGSpecialization" value={formData.UGSpecialization} onChange={handleChange} placeholder="e.g. Computer Science" required={false} />
+                    <FormGroup label="Specialization / Specification (Major)" name="UGSpecification" value={formData.UGSpecification} onChange={handleChange} placeholder="e.g. Computer Science" required={false} />
 
                     <div className="form-group">
                       <label>Institution/University</label>
@@ -1695,7 +1705,7 @@ function EmployeeForm() {
                   <h3 className="section-heading">Postgraduate (PG) (Optional)</h3>
                   <div className="form-grid">
                     <FormGroup label="Degree" name="PGDegree" value={formData.PGDegree} onChange={handleChange} required={false} />
-                    <FormGroup label="Specialization" name="PGSpecialization" value={formData.PGSpecialization} onChange={handleChange} placeholder="e.g. MBA Management" required={false} />
+                    <FormGroup label="Specialization / Specification" name="PGSpecification" value={formData.PGSpecification} onChange={handleChange} placeholder="e.g. MBA Management" required={false} />
 
                     <div className="form-group">
                       <label>Institution/University</label>
@@ -1765,8 +1775,7 @@ function EmployeeForm() {
                       <div className="form-grid">
                         <FormGroup label="Company Name" name="organization" value={exp.organization} onChange={(e) => handleEmploymentChange(idx, e)} />
                         <FormGroup label="Designation" name="designation" value={exp.designation} onChange={(e) => handleEmploymentChange(idx, e)} />
-                        <FormGroup label="Start Date" name="startDate" type="date" value={exp.startDate} onChange={(e) => handleEmploymentChange(idx, e)} />
-                        <FormGroup label="End Date" name="endDate" type="date" value={exp.endDate} onChange={(e) => handleEmploymentChange(idx, e)} />
+                        <FormGroup label="Duration" name="duration" placeholder="e.g. Jan 2022 - Jun 2023" value={exp.duration} onChange={(e) => handleEmploymentChange(idx, e)} />
                         <FormGroup label="CTC Per Annum" name="salary" placeholder="e.g. 5,00,000" value={exp.salary} onChange={(e) => handleEmploymentChange(idx, e)} />
                         <FormGroup label="Reason for Leaving" name="reason" value={exp.reason} onChange={(e) => handleEmploymentChange(idx, e)} />
                       </div>
@@ -1805,7 +1814,7 @@ function EmployeeForm() {
                 <div key={idx} className="form-card form-grid">
                   <FormGroup label="Course Name" name="name" value={t.name} onChange={(e) => handleTrainingChange(idx, e)} />
                   <FormGroup label="Institute" name="institute" value={t.institute} onChange={(e) => handleTrainingChange(idx, e)} />
-                  <FormGroup label="Period/Duration" name="period" placeholder="e.g. Jan 2022 - Jun 2023" value={t.period} onChange={(e) => handleTrainingChange(idx, e)} />
+                  <FormGroup label="Duration" name="duration" placeholder="e.g. Jan 2022 - Jun 2023" value={t.duration} onChange={(e) => handleTrainingChange(idx, e)} />
                 </div>
               ))}
               <div style={{ marginBottom: '30px' }}>

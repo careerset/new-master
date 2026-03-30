@@ -164,11 +164,12 @@ const PrintProfile = ({ employee }) => {
         <table className="print-table bordered-cells">
           <thead>
             <tr>
-              <th width="15%">Level</th>
-              <th width="20%">Board</th>
-              <th width="28%">Degree</th>
+              <th width="10%">Level</th>
+              <th width="15%">Degree/Board</th>
+              <th width="25%">Specialization / Specification</th>
               <th width="25%">Institution</th>
-              <th width="12%">Year</th>
+              <th width="15%">Year</th>
+              <th width="10%">%</th>
             </tr>
           </thead>
           <tbody>
@@ -178,6 +179,7 @@ const PrintProfile = ({ employee }) => {
               <td>-</td>
               <td>{employee["10thSchool"] || "-"}</td>
               <td>{employee["10thYear"] || "-"}</td>
+              <td>{employee["10thPercent"] || "-"}%</td>
             </tr>
             <tr>
               <td>12th</td>
@@ -185,19 +187,22 @@ const PrintProfile = ({ employee }) => {
               <td>-</td>
               <td>{employee["12thSchool"] || "-"}</td>
               <td>{employee["12thYear"] || "-"}</td>
+              <td>{employee["12thPercent"] || "-"}%</td>
             </tr>
             {employee.DiplomaDegree && (
               <tr>
                 <td>Diploma</td>
-                <td>{employee.DiplomaDegree || "-"} {employee.DiplomaSpecialization ? `(${employee.DiplomaSpecialization})` : ""}</td>
-                <td>-</td>
+                <td>{employee.DiplomaDegree || "-"}</td>
+                <td>{employee.DiplomaSpecialization || employee.DiplomaSpecification || "-"}</td>
                 <td>{employee.DiplomaCollege || "-"}</td>
                 <td>{employee.DiplomaYear || "-"}</td>
+                <td>{employee.DiplomaPercent || "-"}%</td>
               </tr>
             )}
             <tr>
               <td>UG</td>
-              <td>{employee.UGDegree || "-"} {employee.UGSpecialization ? `(${employee.UGSpecialization})` : ""}</td>
+              <td>{employee.UGDegree || "-"}</td>
+              <td>{employee.UGSpecification || employee.UGSpecialization || "-"}</td>
               <td>{employee.UGCollege || "-"}</td>
               <td>{employee.UGYear || "-"}</td>
               <td>{employee.UGPercent || "-"}%</td>
@@ -205,7 +210,8 @@ const PrintProfile = ({ employee }) => {
             {employee.PGDegree && (
               <tr>
                 <td>PG</td>
-                <td>{employee.PGDegree || "-"} {employee.PGSpecialization ? `(${employee.PGSpecialization})` : ""}</td>
+                <td>{employee.PGDegree || "-"}</td>
+                <td>{employee.PGSpecification || employee.PGSpecialization || "-"}</td>
                 <td>{employee.PGCollege || "-"}</td>
                 <td>{employee.PGYear || "-"}</td>
                 <td>{employee.PGPercent || "-"}%</td>
@@ -278,7 +284,7 @@ const PrintProfile = ({ employee }) => {
             <tr>
               <th width="30%">Training</th>
               <th width="40%">Institute</th>
-              <th width="30%">Duration/Period</th>
+              <th width="30%">Duration</th>
             </tr>
           </thead>
           <tbody>
@@ -286,7 +292,7 @@ const PrintProfile = ({ employee }) => {
               <tr key={i}>
                 <td>{t.name || t.training_name}</td>
                 <td>{t.institute}</td>
-                <td>{t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.StartDate || t.EndDate || t.duration || "-"))}</td>
+                <td>{t.duration || t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.StartDate || t.EndDate || ""))}</td>
               </tr>
             )) : (
               <tr>
@@ -308,7 +314,7 @@ const PrintProfile = ({ employee }) => {
             <tr>
               <th width="25%">Organization</th>
               <th width="20%">Designation</th>
-              <th width="20%">Period</th>
+              <th width="20%">Duration</th>
               <th width="15%">Salary</th>
               <th width="20%">Reason</th>
             </tr>
@@ -318,7 +324,7 @@ const PrintProfile = ({ employee }) => {
               <tr key={i}>
                 <td>{e.organization}</td>
                 <td>{e.designation}</td>
-                <td>{e.startDate ? `${e.startDate} to ${e.endDate}` : (e.period || "-")}</td>
+                <td>{e.duration || e.period || (e.startDate && e.endDate ? `${e.startDate} to ${e.endDate}` : (e.startDate || e.endDate || "-"))}</td>
                 <td>{e.salary}</td>
                 <td>{e.reason}</td>
               </tr>

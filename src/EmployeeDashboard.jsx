@@ -361,7 +361,7 @@ function EmployeeDashboard() {
                   </thead>
                   <tbody>
                     {emp.PGDegree && <tr><td style={{ fontWeight: 800 }}>{emp.PGDegree}</td><td>{emp.PGSpecification || emp.PGSpecialization}</td><td>{emp.PGCollege}</td><td>{emp.PGYear}</td><td>{emp.PGPercent}%</td></tr>}
-                    {emp.DiplomaDegree && <tr><td style={{ fontWeight: 800 }}>Diploma</td><td>{emp.DiplomaDegree} ({emp.DiplomaSpecialization})</td><td>{emp.DiplomaCollege}</td><td>{emp.DiplomaYear}</td><td>{emp.DiplomaPercent}%</td></tr>}
+                    {emp.DiplomaDegree && <tr><td style={{ fontWeight: 800 }}>Diploma</td><td>{emp.DiplomaDegree} ({emp.DiplomaSpecialization || emp.DiplomaSpecification})</td><td>{emp.DiplomaCollege}</td><td>{emp.DiplomaYear}</td><td>{emp.DiplomaPercent}%</td></tr>}
                     <tr><td style={{ fontWeight: 800 }}>{emp.UGDegree}</td><td>{emp.UGSpecification || emp.UGSpecialization}</td><td>{emp.UGCollege}</td><td>{emp.UGYear}</td><td>{emp.UGPercent}%</td></tr>
                     <tr><td style={{ fontWeight: 800 }}>Higher Secondary</td><td>{emp["12thBoard"]}</td><td>{emp["12thSchool"]}</td><td>{emp["12thYear"]}</td><td>{emp["12thPercent"]}%</td></tr>
                     <tr><td style={{ fontWeight: 800 }}>Standard X</td><td>{emp["10thBoard"]}</td><td>{emp["10thSchool"]}</td><td>{emp["10thYear"]}</td><td>{emp["10thPercent"]}%</td></tr>
@@ -378,7 +378,7 @@ function EmployeeDashboard() {
                     <tr>
                       <th>Organization</th>
                       <th>Role</th>
-                      <th>Period</th>
+                      <th>Duration</th>
                       <th>Salary Package</th>
                     </tr>
                   </thead>
@@ -387,7 +387,7 @@ function EmployeeDashboard() {
                       <tr key={i}>
                         <td style={{ fontWeight: 800 }}>{exp.organization}</td>
                         <td>{exp.designation}</td>
-                        <td>{exp.startDate ? `${exp.startDate} to ${exp.endDate}` : (exp.period || "-")}</td>
+                        <td>{exp.duration || exp.period || (exp.startDate && exp.endDate ? `${exp.startDate} to ${exp.endDate}` : (exp.startDate || exp.endDate || "-"))}</td>
                         <td>{exp.salary}</td>
                       </tr>
                     )) : <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>No corporate history records found</td></tr>}
@@ -412,7 +412,7 @@ function EmployeeDashboard() {
                       <tr key={i}>
                         <td style={{ fontWeight: 800 }}>{tr.name}</td>
                         <td>{tr.institute}</td>
-                        <td>{tr.period || (tr.StartDate && tr.EndDate ? `${formatDate(tr.StartDate)} to ${formatDate(tr.EndDate)}` : (formatDate(tr.StartDate) || formatDate(tr.EndDate) || "-"))}</td>
+                        <td>{tr.duration || tr.period || (tr.StartDate && tr.EndDate ? `${formatDate(tr.StartDate)} to ${formatDate(tr.EndDate)}` : (formatDate(tr.StartDate) || formatDate(tr.EndDate) || "-"))}</td>
                       </tr>
                     )) : <tr><td colSpan="3" style={{ textAlign: 'center' }}>No certification records found</td></tr>}
                   </tbody>
