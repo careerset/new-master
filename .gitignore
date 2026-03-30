@@ -18,6 +18,12 @@
 .env.development.local
 .env.test.local
 .env.production.local
+clean_log.txt
+git_status.txt
+headers.txt
+headers_fixed.txt
+headers_new.txt
+documentation.md
 
 npm-debug.log*
 yarn-debug.log*

@@ -47,11 +47,11 @@ function AdminActionsContent({ employee, onUpdate }) {
 
     return (
         <div className="mg-detail-section animate-fade-in">
-            <h3 style={{ color: '#ef4444', borderBottom: '2px solid #fee2e2', paddingBottom: '10px', marginBottom: '20px' }}>Managerial Oversight</h3>
-            <div className="mg-detail-grid" style={{ background: '#fff1f2', padding: '20px', borderRadius: '12px', border: '1px solid #fecaca' }}>
+            <h3 style={{ color: 'var(--mg-primary)', borderBottom: '2px solid var(--mg-border)', paddingBottom: '10px', marginBottom: '20px' }}>Managerial Oversight</h3>
+            <div className="mg-detail-grid" style={{ background: 'var(--mg-bg)', padding: '20px', borderRadius: '16px', border: '1px solid var(--mg-border)' }}>
                 <div className="mg-info-item">
                     <label>Employee Status</label>
-                    <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                    <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white' }}>
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
                         <option value="PIP">PIP</option>
@@ -61,7 +61,7 @@ function AdminActionsContent({ employee, onUpdate }) {
                 </div>
                 <div className="mg-info-item">
                     <label>Employment Type</label>
-                    <select value={empType} onChange={(e) => setEmpType(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                    <select value={empType} onChange={(e) => setEmpType(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white' }}>
                         <option value="regular">Regular</option>
                         <option value="contract">Contract</option>
                         <option value="training">Training</option>
@@ -73,17 +73,17 @@ function AdminActionsContent({ employee, onUpdate }) {
                 {empType === "regular" && (
                     <div className="mg-info-item">
                         <label>Confirmation Status</label>
-                        <select value={confType} onChange={(e) => setConfType(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                        <select value={confType} onChange={(e) => setConfType(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white' }}>
                             <option value="Probation">Probation</option>
                             <option value="Confirmed">Confirmed</option>
                         </select>
                     </div>
                 )}
             </div>
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                     className="mg-cmd-btn"
-                    style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', width: 'auto', padding: '12px 30px' }}
+                    style={{ width: 'auto', padding: '14px 40px' }}
                     onClick={() => {
                         const updateData = { Status: status, EmploymentType: empType };
                         if (empType === "regular") updateData.ConfirmationType = confType;
@@ -339,7 +339,7 @@ function ManagerDashboard() {
                     <div className="mg-header-actions">
                         {activeTab === 'employees' && (
                             <div className="mg-search-box-wrapper">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                                 <input
                                     type="text"
                                     placeholder="Search Team..."
@@ -352,16 +352,15 @@ function ManagerDashboard() {
                         <div className="mg-event-indicator">
                             <div className="mg-event-emoji">🎊</div>
                             <div className="mg-event-text">
-                                <span className="mg-event-label">Team Events This Month:</span>
+                                <span className="mg-event-label">System Snapshot</span>
                                 <span className="mg-event-stats">
-                                    <strong>{getUpcomingBirthdays().length}</strong> Birthdays •
-                                    <strong>{getWorkAnniversaries().length}</strong> Anniversaries
+                                    <strong>{getUpcomingBirthdays().length + getWorkAnniversaries().length}</strong> Active Alerts
                                 </span>
                             </div>
                         </div>
-                        <button className="mg-primary-action-btn" onClick={loadEmployees} style={{ background: 'var(--manager-gradient)' }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px' }}><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                            Sync Team
+                        <button className="mg-primary-action-btn" onClick={loadEmployees}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            Sync Workforce
                         </button>
                     </div>
                 </div>
@@ -371,14 +370,14 @@ function ManagerDashboard() {
                         {/* Manager Stats Grid */}
                         <div className="mg-insights-grid">
                             <StatCardV2
-                                label="Total Team Size"
+                                label="Total Team Count"
                                 value={employees.length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>}
-                                color="#059669"
+                                color="#6366f1"
                                 onClick={() => { setActiveTab('employees'); setFilterStatus('All'); }}
                             />
                             <StatCardV2
-                                label="Active Employees"
+                                label="Active Members"
                                 value={employees.filter(e => !e.Status || ['active', 'pip'].includes(e.Status?.toLowerCase())).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>}
                                 color="#10b981"
@@ -386,13 +385,13 @@ function ManagerDashboard() {
                                 onClick={() => { setActiveTab('employees'); setFilterStatus('Active'); }}
                             />
                             <StatCardV2
-                                label="Data Quality"
+                                label="Profile Quality"
                                 value={`${employees.length > 0 ? Math.round(employees.reduce((acc, e) => acc + getProfileCompletion(e), 0) / employees.length) : 0}%`}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20v-6M9 20v-10M15 20v-2M18 20V4M6 20v-4"></path></svg>}
-                                color="#6366f1"
+                                color="#3b82f6"
                             />
                             <StatCardV2
-                                label="Hiring Velocity"
+                                label="New Joiners (30d)"
                                 value={employees.filter(e => {
                                     const joinDate = new Date(e.DateOfJoining || e.doj);
                                     const thirtyDaysAgo = new Date();
@@ -400,7 +399,7 @@ function ManagerDashboard() {
                                     return joinDate >= thirtyDaysAgo;
                                 }).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>}
-                                color="#f59e0b"
+                                color="#f97316"
                             />
                         </div>
 
@@ -582,7 +581,7 @@ function ManagerDashboard() {
                                     <option value="doj">Joining Date</option>
                                 </select>
                             </div>
-                            <div className="mg-filter-summary">
+                            <div className="mg-team-count">
                                 Team: <strong>{filteredEmployees.length}</strong>
                             </div>
                         </div>
@@ -672,7 +671,7 @@ function ManagerDashboard() {
                             <button className={`mg-modal-pill-item ${detailTab === 'experience' ? 'active' : ''}`} onClick={() => setDetailTab('experience')}>Experience</button>
                             <button className={`mg-modal-pill-item ${detailTab === 'statutory' ? 'active' : ''}`} onClick={() => setDetailTab('statutory')}>Statutory</button>
                             <button className={`mg-modal-pill-item ${detailTab === 'documents' ? 'active' : ''}`} onClick={() => setDetailTab('documents')}>Documents</button>
-                            <button className={`mg-modal-pill-item ${detailTab === 'admin' ? 'active' : ''}`} style={{ color: '#ef4444' }} onClick={() => setDetailTab('admin')}>Admin Actions</button>
+                            <button className={`mg-modal-pill-item ${detailTab === 'admin' ? 'active' : ''}`} onClick={() => setDetailTab('admin')}>Admin Actions</button>
                         </div>
 
                         <div className="mg-modal-body-scroll">

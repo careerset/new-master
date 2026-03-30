@@ -50,6 +50,8 @@ const normalizeDept = (dept) => {
 function AdminActionsContent({ employee, onUpdate }) {
     const [status, setStatus] = useState(employee.Status || "Active");
     const [empType, setEmpType] = useState(employee.EmploymentType || "regular");
+    const [newId, setNewId] = useState(employee.EmpID || employee.employee_code || "");
+    const [isIdEditing, setIsIdEditing] = useState(false);
 
     const [confType, setConfType] = useState(employee.ConfirmationType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
     
@@ -104,7 +106,37 @@ function AdminActionsContent({ employee, onUpdate }) {
                         </select>
                     </div>
                 )}
-              
+            </div>
+
+            <div style={{ marginTop: '25px', padding: '15px', background: '#fff', borderRadius: '12px', border: '1px solid #fecaca' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '700', color: '#991b1b' }}>Employee ID Management</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', color: isIdEditing ? '#ef4444' : '#64748b' }}>Update ID</span>
+                        <label className="switch" style={{ width: '34px', height: '18px' }}>
+                            <input type="checkbox" checked={isIdEditing} onChange={(e) => setIsIdEditing(e.target.checked)} />
+                            <span className="slider round" style={{ borderRadius: '18px' }}></span>
+                        </label>
+                    </div>
+                </div>
+                {isIdEditing ? (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <input
+                            type="text"
+                            value={newId}
+                            onChange={(e) => setNewId(e.target.value)}
+                            placeholder="Enter new Employee ID"
+                            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ef4444', fontSize: '14px' }}
+                        />
+                        <div style={{ fontSize: '11px', color: '#ef4444', alignSelf: 'center', maxWidth: '150px' }}>
+                            ⚠️ Changing the ID will update all historical records.
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#64748b', fontSize: '13px' }}>
+                        Current ID: <strong>{employee.EmpID || employee.employee_code}</strong> (Locked)
+                    </div>
+                )}
             </div>
 
             <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
@@ -113,9 +145,9 @@ function AdminActionsContent({ employee, onUpdate }) {
                     style={{ background: '#ef4444', width: 'auto', padding: '12px 30px' }}
                     onClick={() => {
                         const updateData = { Status: status, EmploymentType: empType };
-                        if (empType === "regular") {
-                            updateData.ConfirmationType = confType;
-                        }
+                        if (empType === "regular") updateData.ConfirmationType = confType;
+                        if (newId && newId !== employee.EmpID) updateData.newEmpId = newId;
+
                         onUpdate(updateData);
                     }}
                 >
@@ -236,8 +268,9 @@ function HrDashboard() {
                 loadEmployees(); // Refresh list
 
                 // Refresh single view if open
-                if (selectedEmployee && selectedEmployee.EmpID === empId) {
-                    setSelectedEmployee({ ...selectedEmployee, ...fields });
+                if (selectedEmployee && (selectedEmployee.EmpID === empId || selectedEmployee.employee_code === empId)) {
+                    const nextEmpId = fields.newEmpId || empId;
+                    setSelectedEmployee({ ...selectedEmployee, ...fields, EmpID: nextEmpId });
                 }
             } else {
                 alert("Error updating status: " + data.message);

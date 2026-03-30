@@ -555,7 +555,7 @@ body {
     background: white;
     padding: 15px 20px;
     border-bottom: 1px solid var(--border-color);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .mobile-header-top {
@@ -667,7 +667,8 @@ body {
         gap: 15px;
     }
 
-    .btn-next, .btn-prev {
+    .btn-next,
+    .btn-prev {
         width: 100%;
         justify-content: center;
     }
