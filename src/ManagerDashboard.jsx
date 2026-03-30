@@ -611,7 +611,7 @@ function ManagerDashboard() {
                                             <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>Undergraduate (UG)</h4>
                                             <div className="mg-detail-grid">
                                                 <InfoItem label="Degree" value={selectedEmployee.UGDegree} />
-                                                <InfoItem label="Specialization" value={selectedEmployee.UGSpecialization} />
+                                                <InfoItem label="Specialization / Specification" value={selectedEmployee.UGSpecification || selectedEmployee.UGSpecialization} />
                                                 <InfoItem label="College" value={selectedEmployee.UGCollege} />
                                                 <InfoItem label="Year of Passing" value={selectedEmployee.UGYear} />
                                                 <InfoItem label="Percentage/CGPA" value={selectedEmployee.UGPercent} />
@@ -622,7 +622,7 @@ function ManagerDashboard() {
                                                 <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>Postgraduate (PG)</h4>
                                                 <div className="mg-detail-grid">
                                                     <InfoItem label="Degree" value={selectedEmployee.PGDegree} />
-                                                    <InfoItem label="Specialization" value={selectedEmployee.PGSpecialization} />
+                                                    <InfoItem label="Specialization / Specification" value={selectedEmployee.PGSpecification || selectedEmployee.PGSpecialization} />
                                                     <InfoItem label="College" value={selectedEmployee.PGCollege} />
                                                     <InfoItem label="Year of Passing" value={selectedEmployee.PGYear} />
                                                     <InfoItem label="Percentage/CGPA" value={selectedEmployee.PGPercent} />
@@ -652,7 +652,7 @@ function ManagerDashboard() {
                                                 <tr>
                                                     <th>Organization</th>
                                                     <th>Designation</th>
-                                                    <th>Period</th>
+                                                    <th>Duration</th>
                                                     <th>Salary</th>
                                                 </tr>
                                             </thead>
@@ -667,7 +667,7 @@ function ManagerDashboard() {
                                                         <tr key={i}>
                                                             <td>{exp.organization}</td>
                                                             <td>{exp.designation}</td>
-                                                            <td>{exp.period || (exp.startDate ? `${exp.startDate} to ${exp.endDate}` : "-")}</td>
+                                                            <td>{exp.duration || exp.period || (exp.startDate && exp.endDate ? `${exp.startDate} to ${exp.endDate}` : "-")}</td>
                                                             <td>{exp.salary}</td>
                                                         </tr>
                                                     )) : <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>No experience records</td></tr>;

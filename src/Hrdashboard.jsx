@@ -907,7 +907,7 @@ function HrDashboard() {
                                                 <strong style={{ fontSize: '12px', color: '#64748b' }}>Diploma</strong>
                                                 <div className="profile-grid" style={{ marginTop: '5px' }}>
                                                     <InfoItem label="Degree" value={selectedEmployee.DiplomaDegree} />
-                                                    <InfoItem label="Specialization" value={selectedEmployee.DiplomaSpecialization} />
+                                                    <InfoItem label="Specialization / Specification" value={selectedEmployee.DiplomaSpecialization || selectedEmployee.DiplomaSpecification} />
                                                     <InfoItem label="College" value={selectedEmployee.DiplomaCollege} />
                                                     <InfoItem label="Year" value={selectedEmployee.DiplomaYear} />
                                                     <InfoItem label="Percentage" value={selectedEmployee.DiplomaPercent} />
@@ -918,7 +918,7 @@ function HrDashboard() {
                                             <strong style={{ fontSize: '12px', color: '#64748b' }}>Undergraduate (UG)</strong>
                                             <div className="profile-grid" style={{ marginTop: '5px' }}>
                                                 <InfoItem label="Degree" value={selectedEmployee.UGDegree} />
-                                                <InfoItem label="Specialization" value={selectedEmployee.UGSpecialization} />
+                                                <InfoItem label="Specialization / Specification" value={selectedEmployee.UGSpecification || selectedEmployee.UGSpecialization} />
                                                 <InfoItem label="College" value={selectedEmployee.UGCollege} />
                                                 <InfoItem label="Year" value={selectedEmployee.UGYear} />
                                                 <InfoItem label="Percentage" value={selectedEmployee.UGPercent} />
@@ -929,7 +929,7 @@ function HrDashboard() {
                                                 <strong style={{ fontSize: '12px', color: '#64748b' }}>Postgraduate (PG)</strong>
                                                 <div className="profile-grid" style={{ marginTop: '5px' }}>
                                                     <InfoItem label="Degree" value={selectedEmployee.PGDegree} />
-                                                    <InfoItem label="Specialization" value={selectedEmployee.PGSpecialization} />
+                                                    <InfoItem label="Specialization / Specification" value={selectedEmployee.PGSpecification || selectedEmployee.PGSpecialization} />
                                                     <InfoItem label="College" value={selectedEmployee.PGCollege} />
                                                     <InfoItem label="Year" value={selectedEmployee.PGYear} />
                                                     <InfoItem label="Percentage" value={selectedEmployee.PGPercent} />
@@ -962,7 +962,7 @@ function HrDashboard() {
                                                             <tr key={i}>
                                                                 <td>{t.name || t.training_name}</td>
                                                                 <td>{t.institute}</td>
-                                                                <td>{t.period || (t.start_date && t.end_date ? `${t.start_date} to ${t.end_date}` : (t.start_date || t.end_date || "-"))}</td>
+                                                                <td>{t.duration || t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.start_date && t.end_date ? `${t.start_date} to ${t.end_date}` : (t.StartDate || t.EndDate || t.start_date || t.end_date || "-")))}</td>
                                                             </tr>
                                                         ));
                                                     })()}
@@ -992,7 +992,7 @@ function HrDashboard() {
                                                             <tr key={i}>
                                                                 <td>{e.organization}</td>
                                                                 <td>{e.designation}</td>
-                                                                <td>{e.startDate ? `${e.startDate} to ${e.endDate}` : (e.period || "-")}</td>
+                                                                <td>{e.duration || (e.startDate && e.endDate ? `${e.startDate} to ${e.endDate}` : (e.period || "-"))}</td>
                                                                 <td>{e.salary}</td>
                                                                 <td>{e.reason}</td>
                                                             </tr>
