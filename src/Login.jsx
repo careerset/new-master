@@ -101,13 +101,47 @@ function EmployeeLogin() {
     isSubmitting.current = true;
     setIsLoading(true);
 
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
     try {
+      // 1. Check HR Credentials
+      const hrUser = (process.env.REACT_APP_HR_USER || "").replace(/"/g, '').trim();
+      const hrPass = (process.env.REACT_APP_HR_PASS || "").replace(/"/g, '').trim();
+      if (trimmedEmail === hrUser && trimmedPassword === hrPass) {
+        localStorage.setItem("hrLoggedIn", "true");
+        localStorage.setItem("loginTime", Date.now().toString());
+        navigate("/hr-dashboard");
+        return;
+      }
+
+      // 2. Check Manager Credentials
+      const managerUser = (process.env.REACT_APP_MANAGER_USER || "").replace(/"/g, '').trim();
+      const managerPass = (process.env.REACT_APP_MANAGER_PASS || "").replace(/"/g, '').trim();
+      if (trimmedEmail === managerUser && trimmedPassword === managerPass) {
+        localStorage.setItem("managerLoggedIn", "true");
+        localStorage.setItem("loginTime", Date.now().toString());
+        navigate("/manager-dashboard");
+        return;
+      }
+
+      // 3. Check Admin/SuperUser Credentials
+      const adminUser = (process.env.REACT_APP_ADMIN_USER || "").replace(/"/g, '').trim();
+      const adminPass = (process.env.REACT_APP_ADMIN_PASS || "").replace(/"/g, '').trim();
+      if (trimmedEmail === adminUser && trimmedPassword === adminPass) {
+        localStorage.setItem("superuserLoggedIn", "true");
+        localStorage.setItem("loginTime", Date.now().toString());
+        navigate("/admin-dashboard");
+        return;
+      }
+
+      // 4. Default to Employee Login (Backend Call)
       const res = await fetch(API_URL, {
         method: "POST",
         body: new URLSearchParams({
           action: "login",
-          email: email.trim(),
-          password: password.trim(),
+          email: trimmedEmail,
+          password: trimmedPassword,
         }),
       });
 
@@ -409,9 +443,9 @@ function EmployeeLogin() {
         <div className="login-welcome" style={{ backgroundImage: "url('/employee.jpg')", backgroundSize: "cover", backgroundPosition: "center" }}>
           {!isForgotMode ? (
             <>
-              <h1>Employee portal</h1>
+              <h1>Workforz Portal</h1>
               <div className="welcome-line"></div>
-              <p>Enter your credentials to access your secure workspace and managed onboarding tools.</p>
+              <p>Secure access hub for all users. Log in with your credentials to reach your dashboard.</p>
             </>
           ) : (
             <>
@@ -644,48 +678,6 @@ function EmployeeLogin() {
               </>
             )}
 
-            {email === "hrlogin" && (
-              <p
-                style={{
-                  marginTop: "20px",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                  color: "#0b1d61",
-                  textAlign: "center"
-                }}
-                onClick={() => navigate("/hr-login")}
-              >
-                HR Login ?
-              </p>
-            )}
-            {email === "managerlogin" && (
-              <p
-                style={{
-                  marginTop: "20px",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                  color: "#0b1d61",
-                  textAlign: "center"
-                }}
-                onClick={() => navigate("/manager-login")}
-              >
-                Manager Login ?
-              </p>
-            )}
-            {email === "superuserlogin" && (
-              <p
-                style={{
-                  marginTop: "20px",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                  color: "#0b1d61",
-                  textAlign: "center"
-                }}
-                onClick={() => navigate("/superuser-login")}
-              >
-                Superuser Login ?
-              </p>
-            )}
             <div className="footer-links">
               <p>
                 Don't have an account? <span onClick={() => navigate("/signup")} style={{ color: 'var(--primary)', fontWeight: '700', cursor: 'pointer' }}>Sign Up</span>
