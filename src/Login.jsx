@@ -105,27 +105,7 @@ function EmployeeLogin() {
     const trimmedPassword = password.trim();
 
     try {
-      // 1. Check HR Credentials
-      const hrUser = (process.env.REACT_APP_HR_USER || "").replace(/"/g, '').trim();
-      const hrPass = (process.env.REACT_APP_HR_PASS || "").replace(/"/g, '').trim();
-      if (trimmedEmail === hrUser && trimmedPassword === hrPass) {
-        localStorage.setItem("hrLoggedIn", "true");
-        localStorage.setItem("loginTime", Date.now().toString());
-        navigate("/hr-dashboard");
-        return;
-      }
-
-      // 2. Check Manager Credentials
-      const managerUser = (process.env.REACT_APP_MANAGER_USER || "").replace(/"/g, '').trim();
-      const managerPass = (process.env.REACT_APP_MANAGER_PASS || "").replace(/"/g, '').trim();
-      if (trimmedEmail === managerUser && trimmedPassword === managerPass) {
-        localStorage.setItem("managerLoggedIn", "true");
-        localStorage.setItem("loginTime", Date.now().toString());
-        navigate("/manager-dashboard");
-        return;
-      }
-
-      // 3. Check Admin/SuperUser Credentials
+      // 1. Check Root Admin/SuperUser Credentials (Fallback from .env)
       const adminUser = (process.env.REACT_APP_ADMIN_USER || "").replace(/"/g, '').trim();
       const adminPass = (process.env.REACT_APP_ADMIN_PASS || "").replace(/"/g, '').trim();
       if (trimmedEmail === adminUser && trimmedPassword === adminPass) {
@@ -135,7 +115,36 @@ function EmployeeLogin() {
         return;
       }
 
-      // 4. Default to Employee Login (Backend Call)
+      // 2. Check Backend for Dynamic Admin/Manager/HR Users
+      try {
+        const adminRes = await fetch(API_URL, {
+          method: "POST",
+          body: new URLSearchParams({
+            action: "adminLogin",
+            email: trimmedEmail,
+            password: trimmedPassword,
+          }),
+        });
+        const adminData = await adminRes.json();
+        if (adminData.status === "success") {
+          localStorage.setItem("loginTime", Date.now().toString());
+          if (adminData.role === "Manager") {
+            localStorage.setItem("managerLoggedIn", "true");
+            navigate("/manager-dashboard");
+          } else if (adminData.role === "HR") {
+            localStorage.setItem("hrLoggedIn", "true");
+            navigate("/hr-dashboard");
+          } else {
+             localStorage.setItem("superuserLoggedIn", "true");
+             navigate("/admin-dashboard");
+          }
+          return;
+        }
+      } catch (adminErr) {
+        console.error("Admin login check failed", adminErr);
+      }
+
+      // 3. Default to Employee Login (Backend Call)
       const res = await fetch(API_URL, {
         method: "POST",
         body: new URLSearchParams({

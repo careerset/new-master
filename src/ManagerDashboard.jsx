@@ -647,8 +647,8 @@ function ManagerDashboard() {
                                 <label>Status</label>
                                 <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                                     <option value="All">All Status</option>
-                                    <option value="Active">Active Only</option>
-                                    <option value="Inactive">Inactive Only</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
                                     <option value="PIP">PIP</option>
                                     <option value="Inactive Suspend">Inactive Suspend</option>
                                     <option value="Abscond">Abscond</option>
@@ -660,7 +660,7 @@ function ManagerDashboard() {
                                     <option value="All">All Types</option>
                                     <option value="Regular">Regular</option>
                                     <option value="Contract">Contract</option>
-                                    <option value="Training">Trainer</option>
+                                    <option value="Training">Trainee</option>
                                     <option value="Intern">Intern</option>
                                     <option value="Consultant">Consultant</option>
                                     <option value="Other">Other</option>
@@ -669,7 +669,7 @@ function ManagerDashboard() {
                             <div className="mg-filter-unit">
                                 <label>Confirmation Status</label>
                                 <select value={filterEmploymentType} onChange={(e) => setFilterEmploymentType(e.target.value)}>
-                                    <option value="All">All Statuses</option>
+                                    <option value="All">All Status</option>
                                     <option value="Confirmed">Confirmed</option>
                                     <option value="Probation">Probation</option>
                                 </select>
@@ -682,9 +682,7 @@ function ManagerDashboard() {
                                     <option value="doj">Joining Date</option>
                                 </select>
                             </div>
-                            <div className="mg-team-count">
-                                Team: <strong>{filteredEmployees.length}</strong>
-                            </div>
+                            
                         </div>
 
                         <div className="mg-member-grid">
@@ -901,7 +899,7 @@ function ManagerDashboard() {
                                                         <tr key={i}>
                                                             <td>{t.name || t.training_name}</td>
                                                             <td>{t.institute}</td>
-                                                            <td>{t.duration || t.period || (t.start_date && t.end_date ? `${t.start_date} to ${t.end_date}` : "-")}</td>
+                                                            <td>{t.duration || t.period || (t.StartDate && t.EndDate ? `${t.StartDate} to ${t.EndDate}` : (t.start_date && t.end_date ? `${t.start_date} to ${t.end_date}` : (t.StartDate || t.EndDate || t.start_date || t.end_date || "-")))}</td>
                                                         </tr>
                                                     )) : <tr><td colSpan="3" style={{ textAlign: 'center', color: '#94a3b8' }}>No training records found</td></tr>;
                                                 })()}
