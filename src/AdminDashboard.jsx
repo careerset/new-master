@@ -1,9 +1,14 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import "./admindashboard.css";
 import { useNavigate } from "react-router-dom";
 import PrintProfile from "./PrintProfile";
 import "./print.css";
 import "./managerdashboard.css";
+import { renderAsync } from "docx-preview";
+import JSZip from "jszip";
+
+// Required for docx-preview to work correctly
+window.JSZip = JSZip;
 
 const SCRIPT_URL = process.env.REACT_APP_API_URL;
 
@@ -85,8 +90,8 @@ function AdminActionsContent({ employee, onUpdate }) {
             </div>
 
             <div className="ad-oversight-footer">
-                <button 
-                    className="ad-apply-btn" 
+                <button
+                    className="ad-apply-btn"
                     onClick={() => onUpdate({ Status: status, EmploymentType: empType, ConfirmationType: confType })}
                 >
                     Apply System Update
@@ -158,10 +163,10 @@ function AdminUsersContent() {
             <form onSubmit={handleSave} className="ad-oversight-grid" style={{ marginBottom: '30px', borderBottom: '1px solid #f1f5f9', paddingBottom: '25px' }}>
                 <div className="ad-input-field">
                     <label>Email Address</label>
-                    <input 
+                    <input
                         className="ad-admin-select" // Reusing select styling for input
                         style={{ padding: '0 15px', height: '42px' }}
-                        type="email" 
+                        type="email"
                         placeholder="user@company.com"
                         value={newUser.email}
                         onChange={e => setNewUser({ ...newUser, email: e.target.value })}
@@ -169,10 +174,10 @@ function AdminUsersContent() {
                 </div>
                 <div className="ad-input-field">
                     <label>Password</label>
-                    <input 
+                    <input
                         className="ad-admin-select"
                         style={{ padding: '0 15px', height: '42px' }}
-                        type="password" 
+                        type="password"
                         placeholder="••••••••"
                         value={newUser.password}
                         onChange={e => setNewUser({ ...newUser, password: e.target.value })}
@@ -209,7 +214,7 @@ function AdminUsersContent() {
                                     </span>
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
-                                    <button 
+                                    <button
                                         onClick={() => handleDelete(user.email)}
                                         style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}
                                     >
@@ -239,6 +244,8 @@ function AdminDashboard() {
     const [filterStatus, setFilterStatus] = useState("All");
     const [sortBy, setSortBy] = useState("name");
     const [detailTab, setDetailTab] = useState("personal");
+    const [viewingDoc, setViewingDoc] = useState(null);
+    const [policies, setPolicies] = useState([]);
     const navigate = useNavigate();
 
     const normalizeDept = (dept) => {
@@ -260,12 +267,33 @@ function AdminDashboard() {
         } catch (err) { console.error(err); setLoading(false); }
     };
 
+    const loadPolicies = async () => {
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=getHRPolicies`);
+            const data = await res.json();
+            if (data.status === "success" && data.policies) {
+                setPolicies(data.policies.map(p => ({
+                    ...p,
+                    fileId: p.id 
+                })));
+            }
+        } catch (err) {
+            console.error("Error loading policies:", err);
+            setPolicies([
+                { label: "Travel Policy", viewUrl: "/Hrpolicy/Travel Policy_Final.docx", downloadUrl: "/Hrpolicy/Travel Policy_Final.docx", description: "Guidelines for official travel, expenses, and trip reimbursements" }
+            ]);
+        }
+    };
+
     useEffect(() => {
-        const cached = localStorage.getItem("employee_cache");
-        if (cached) setEmployees(JSON.parse(cached));
         loadEmployees();
-        const interval = setInterval(loadEmployees, 30000);
-        return () => clearInterval(interval);
+        loadPolicies();
+        const intv = setInterval(() => {
+            loadEmployees();
+            loadPolicies();
+        }, 15000);
+        return () => clearInterval(intv);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const filteredEmployees = useMemo(() => {
@@ -359,6 +387,10 @@ function AdminDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                         <span>System Access</span>
                     </div>
+                    <div className={`ad-nav-link ${activeTab === 'hrbook' ? 'active' : ''}`} onClick={() => setActiveTab('hrbook')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                        <span>HR Book</span>
+                    </div>
                 </div>
                 <div className="ad-nav-link ad-logout-btn" onClick={() => navigate("/admin-login")}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -402,7 +434,7 @@ function AdminDashboard() {
                                     const d = normalizeDept(curr.Department || curr.department);
                                     if (d) acc[d] = (acc[d] || 0) + 1;
                                     return acc;
-                                }, {})).sort((a,b) => b[1]-a[1]).slice(0,3).map(([d,c]) => (
+                                }, {})).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d, c]) => (
                                     <DistributionBar key={d} label={d} count={c} total={stats.total} color="#6366f1" />
                                 ))}
                             </div>
@@ -442,11 +474,60 @@ function AdminDashboard() {
                             ))}
                         </div>
                     </div>
-                ) : (
+                ) : activeTab === 'access' ? (
                     <AdminUsersContent />
+                ) : (
+                    /* HR Book Tab Content */
+                    <div className="animate-fade-in">
+                        <div className="ad-widget-panel" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
+                            <div className="mg-widget-title-area" style={{ marginBottom: '25px' }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Organizational Handbooks & Policies</h3>
+                            </div>
+
+                            <div className="mg-books-grid">
+                                {policies.length > 0 ? policies.map((policy, i) => (
+                                    <div key={i} className="mg-book-card">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                            <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '8px', borderRadius: '10px' }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            </div>
+                                            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{policy.label}</h4>
+                                        </div>
+                                        <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px 0', lineHeight: '1.5' }}>{policy.description}</p>
+                                        <button
+                                            className="hr-btn-icon"
+                                            style={{ marginTop: 'auto', width: '100%', fontSize: '13px', padding: '10px', height: 'auto', justifyContent: 'center' }}
+                                            onClick={() => {
+                                                setViewingDoc({ 
+                                                    title: policy.label, 
+                                                    fileId: policy.id || policy.fileId,
+                                                    fileName: policy.fileName,
+                                                    downloadPath: policy.downloadUrl 
+                                                });
+                                            }}
+                                        >
+                                            View Document
+                                        </button>
+                                    </div>
+                                )) : (
+                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                        No policies found.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
- {/* Employee Details Modal */}
+            {/* Document Viewer Modal */}
+            {viewingDoc && (
+                <PolicyModal
+                    doc={viewingDoc}
+                    onClose={() => setViewingDoc(null)}
+                />
+            )}
+            {/* Employee Details Modal */}
             {/* Employee Details Modal */}
             {selectedEmployee && (
                 <div className="mg-modal-mask" onClick={() => setSelectedEmployee(null)}>
@@ -854,6 +935,116 @@ function InfoItem({ label, value, span = 1 }) {
         <div className="ad-info-item" style={{ gridColumn: `span ${span}` }}>
             <label>{label}</label>
             <span>{value || "---"}</span>
+        </div>
+    );
+}
+
+function PolicyModal({ doc, onClose }) {
+    const viewerRef = useRef(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        let isMounted = true;
+        async function loadDoc() {
+            try {
+                setLoading(true);
+                setError(null);
+
+                const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
+                
+                if (isPdf) {
+                    setLoading(false);
+                    return;
+                }
+
+                // Fetch via proxy
+                const proxyUrl = `${SCRIPT_URL}?action=proxyFile&fileId=${doc.fileId}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+
+                if (data.status !== "success") throw new Error(data.message || "Failed to fetch document");
+                
+                const byteCharacters = atob(data.base64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: data.mimeType });
+
+                if (isMounted && viewerRef.current) {
+                    viewerRef.current.innerHTML = "";
+                    await renderAsync(blob, viewerRef.current, viewerRef.current, {
+                        className: "docx",
+                        inWrapper: false,
+                        ignoreWidth: false,
+                        ignoreHeight: false,
+                        debug: false
+                    });
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error("Docx rendering error:", err);
+                if (isMounted) {
+                    setError("Could not render document automatically. You can still download it using the icon above.");
+                    setLoading(false);
+                }
+            }
+        }
+        loadDoc();
+        return () => { isMounted = false; };
+    }, [doc.fileId]);
+
+    const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
+
+    return (
+        <div className="mg-modal-mask" style={{ zIndex: 1000 }} onClick={onClose}>
+            <div className="mg-modal-core animate-modal-up" style={{ width: '90%', height: '90%', maxWidth: '1200px' }} onClick={e => e.stopPropagation()}>
+                <div className="mg-modal-top-bar">
+                    <div className="mg-modal-header-info">
+                        <div className="mg-modal-avatar" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        </div>
+                        <div className="mg-modal-title-wrap">
+                            <h2 className="mg-modal-name">{doc.title}</h2>
+                            <p className="mg-modal-id">HR Policy Document</p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <a href={doc.downloadPath} download className="ad-primary-action-btn" style={{ padding: '8px 12px', background: '#f8fafc', color: '#475569', textDecoration: 'none', height: 'auto' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </a>
+                        <button className="mg-modal-dismiss" onClick={onClose}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mg-modal-body" style={{ background: '#f8fafc', padding: '0' }}>
+                    <div style={{ height: '100%', overflow: 'auto', padding: '40px 20px' }}>
+                        {loading && (
+                            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+                                <div className="mg-loader-spinner"></div>
+                                <p style={{ color: '#64748b', marginTop: '15px' }}>Rendering Policy Content...</p>
+                            </div>
+                        )}
+                        {error && (
+                            <div style={{ textAlign: 'center', padding: '100px 20px', color: '#ef4444' }}>
+                                <p>{error}</p>
+                            </div>
+                        )}
+                        {isPdf && !error && (
+                            <iframe 
+                                src={`https://drive.google.com/file/d/${doc.fileId}/preview`}
+                                style={{ width: '100%', height: 'calc(100vh - 200px)', border: 'none', borderRadius: '12px', background: 'white' }}
+                                title={doc.title}
+                            />
+                        )}
+                        {!isPdf && <div ref={viewerRef} className="docx-render-area"></div>}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

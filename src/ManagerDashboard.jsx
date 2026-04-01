@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./managerdashboard.css";
 import { useNavigate } from "react-router-dom";
 import PrintProfile from "./PrintProfile";
 import "./print.css";
+import { renderAsync } from "docx-preview";
+import JSZip from "jszip";
+
+// Required for docx-preview to work correctly
+window.JSZip = JSZip;
 
 const SCRIPT_URL = process.env.REACT_APP_API_URL;
 
@@ -109,6 +114,8 @@ function ManagerDashboard() {
     const [loading, setLoading] = useState(false);
     const [searchId, setSearchId] = useState("");
     const [activeTab, setActiveTab] = useState("dashboard");
+    const [viewingDoc, setViewingDoc] = useState(null);
+    const [policies, setPolicies] = useState([]);
     const [filterDept, setFilterDept] = useState("All");
     const [filterGender, setFilterGender] = useState("All");
     const [filterStatus, setFilterStatus] = useState("All");
@@ -151,12 +158,36 @@ function ManagerDashboard() {
         }
     };
 
+    const loadPolicies = async () => {
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=getHRPolicies`);
+            const data = await res.json();
+            if (data.status === "success" && data.policies) {
+                setPolicies(data.policies.map(p => ({
+                    ...p,
+                    fileId: p.id 
+                })));
+            }
+        } catch (err) {
+            console.error("Error loading policies:", err);
+            // Fallback for demo
+            setPolicies([
+                { label: "Travel Policy", viewUrl: "/Hrpolicy/Travel Policy_Final.docx", downloadUrl: "/Hrpolicy/Travel Policy_Final.docx", description: "Guidelines for official travel, expenses, and trip reimbursements" }
+            ]);
+        }
+    };
+
     useEffect(() => {
         const cached = localStorage.getItem("employee_cache");
         if (cached) setEmployees(JSON.parse(cached));
         loadEmployees();
-        const interval = setInterval(loadEmployees, 10000);
-        return () => clearInterval(interval);
+        loadPolicies();
+        const intv = setInterval(() => {
+            loadEmployees();
+            loadPolicies();
+        }, 15000);
+        return () => clearInterval(intv);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const getUpcomingBirthdays = () => {
@@ -173,7 +204,7 @@ function ManagerDashboard() {
             if (month !== celebMonth) return false;
             // If it's the current month, hide passed dates
             if (celebMonth === currentMonth && day < currentDay) return false;
-            
+
             return true;
         }).sort((a, b) => new Date(a.DOB || a.dob).getDate() - new Date(b.DOB || b.dob).getDate()).slice(0, 3);
     };
@@ -348,6 +379,10 @@ function ManagerDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         <span>Team Members</span>
                     </div>
+                    <div className={`mg-nav-link ${activeTab === 'books' ? 'active' : ''}`} onClick={() => setActiveTab('books')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                        <span>HR Books</span>
+                    </div>
                 </div>
                 <div className="mg-nav-link mg-logout-btn" style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9' }} onClick={() => navigate("/manager-login")}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -391,7 +426,7 @@ function ManagerDashboard() {
                                     <div className="hub-content">
                                         <span className="hub-label">Celebrations:</span>
                                         <span className="hub-stats">
-                                            <strong>{bdayCount}</strong> 🎂 • 
+                                            <strong>{bdayCount}</strong> 🎂 •
                                             <strong>{anniCount}</strong> 🎊
                                         </span>
                                     </div>
@@ -626,7 +661,7 @@ function ManagerDashboard() {
                             </div>
                         </div>
                     </div>
-                ) : (
+                ) : activeTab === 'employees' ? (
                     <div className="mg-team-explorer">
                         <div className="mg-filter-shelf">
                             <div className="mg-filter-unit">
@@ -682,7 +717,7 @@ function ManagerDashboard() {
                                     <option value="doj">Joining Date</option>
                                 </select>
                             </div>
-                            
+
                         </div>
 
                         <div className="mg-member-grid">
@@ -741,8 +776,58 @@ function ManagerDashboard() {
                             )}
                         </div>
                     </div>
+                ) : (
+                    /* HR Books Tab Content */
+                    <div className="mg-books-section animate-fade-in">
+                        <div className="mg-widget-panel" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
+                            <div className="mg-widget-title-area" style={{ marginBottom: '25px' }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>HR Handbooks & Policies</h3>
+                            </div>
+
+                            <div className="mg-books-grid">
+                                {policies.length > 0 ? policies.map((policy, i) => (
+                                    <div key={i} className="mg-book-card">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                            <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '8px', borderRadius: '10px' }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            </div>
+                                            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{policy.label}</h4>
+                                        </div>
+                                        <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px 0', lineHeight: '1.5' }}>{policy.description}</p>
+                                        <button
+                                            className="hr-btn-icon"
+                                            style={{ marginTop: 'auto', width: '100%', fontSize: '13px', padding: '10px', height: 'auto', justifyContent: 'center' }}
+                                            onClick={() => {
+                                                setViewingDoc({ 
+                                                    title: policy.label, 
+                                                    fileId: policy.id || policy.fileId,
+                                                    fileName: policy.fileName,
+                                                    downloadPath: policy.downloadUrl 
+                                                });
+                                            }}
+                                        >
+                                            View Document
+                                        </button>
+                                    </div>
+                                )) : (
+                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                        No policies found.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
+
+            {/* Document Viewer Modal */}
+            {viewingDoc && (
+                <PolicyModal
+                    doc={viewingDoc}
+                    onClose={() => setViewingDoc(null)}
+                />
+            )}
 
             {/* Employee Details Modal */}
             {/* Employee Details Modal */}
@@ -1161,6 +1246,116 @@ function hexToRgb(hex) {
     return result ?
         `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` :
         '16, 185, 129';
+}
+
+function PolicyModal({ doc, onClose }) {
+    const viewerRef = useRef(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        let isMounted = true;
+        async function loadDoc() {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
+                
+                if (isPdf) {
+                    setLoading(false);
+                    return;
+                }
+
+                // Fetch via proxy
+                const proxyUrl = `${SCRIPT_URL}?action=proxyFile&fileId=${doc.fileId}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+
+                if (data.status !== "success") throw new Error(data.message || "Failed to fetch document");
+                
+                const byteCharacters = atob(data.base64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: data.mimeType });
+
+                if (isMounted && viewerRef.current) {
+                    viewerRef.current.innerHTML = "";
+                    await renderAsync(blob, viewerRef.current, viewerRef.current, {
+                        className: "docx",
+                        inWrapper: false,
+                        ignoreWidth: false,
+                        ignoreHeight: false,
+                        debug: false
+                    });
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error("Docx rendering error:", err);
+                if (isMounted) {
+                    setError("Could not render document automatically. You can still download it using the icon above.");
+                    setLoading(false);
+                }
+            }
+        }
+        loadDoc();
+        return () => { isMounted = false; };
+    }, [doc.fileId]);
+
+    const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
+
+    return (
+        <div className="mg-modal-mask" style={{ zIndex: 1000 }} onClick={onClose}>
+            <div className="mg-modal-core animate-modal-up" style={{ width: '90%', height: '90%', maxWidth: '1200px' }} onClick={e => e.stopPropagation()}>
+                <div className="mg-modal-top-bar">
+                    <div className="mg-modal-header-info">
+                        <div className="mg-modal-avatar" style={{ background: '#eff6ff', color: '#3b82f6' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        </div>
+                        <div className="mg-modal-title-wrap">
+                            <h2 className="mg-modal-name">{doc.title}</h2>
+                            <p className="mg-modal-id">HR Policy Document</p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <a href={doc.downloadPath} download className="mg-cmd-btn" style={{ padding: '8px 12px', background: '#f1f5f9', color: '#475569', textDecoration: 'none' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </a>
+                        <button className="mg-modal-dismiss" onClick={onClose}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mg-modal-body" style={{ background: '#f8fafc', padding: '0' }}>
+                    <div style={{ height: '100%', overflow: 'auto', padding: '40px 20px' }}>
+                        {loading && (
+                            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+                                <div className="mg-loader-spinner"></div>
+                                <p style={{ color: '#64748b', marginTop: '15px' }}>Rendering Policy Content...</p>
+                            </div>
+                        )}
+                        {error && (
+                            <div style={{ textAlign: 'center', padding: '100px 20px', color: '#ef4444' }}>
+                                <p>{error}</p>
+                            </div>
+                        )}
+                        {isPdf && !error && (
+                            <iframe 
+                                src={`https://drive.google.com/file/d/${doc.fileId}/preview`}
+                                style={{ width: '100%', height: 'calc(100vh - 200px)', border: 'none', borderRadius: '12px', background: 'white' }}
+                                title={doc.title}
+                            />
+                        )}
+                        {!isPdf && <div ref={viewerRef} className="docx-render-area"></div>}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export default ManagerDashboard;

@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import PrintProfile from "./PrintProfile";
 import "./print.css";
 import "./hr.css";
+import { renderAsync } from "docx-preview";
+import JSZip from "jszip";
+
+// Required for docx-preview to work correctly
+window.JSZip = JSZip;
 
 const SCRIPT_URL = process.env.REACT_APP_API_URL;
 
@@ -54,7 +59,7 @@ function AdminActionsContent({ employee, onUpdate }) {
     const [isIdEditing, setIsIdEditing] = useState(false);
 
     const [confType, setConfType] = useState(employee.ConfirmationType || (new Date(employee.DateOfJoining || employee.doj) > new Date(new Date().setMonth(new Date().getMonth() - 3)) ? "Probation" : "Permanent"));
-    
+
     return (
         <div className="profile-section" style={{ border: '2px dashed #fecaca', padding: '25px', borderRadius: '16px', background: '#fffafb' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
@@ -78,7 +83,7 @@ function AdminActionsContent({ employee, onUpdate }) {
                         <option value="Abscond">Abscond</option>
                     </select>
                 </div>
-                  <div className="info-item">
+                <div className="info-item">
                     <label>Employment Type</label>
                     <select
                         value={empType}
@@ -172,6 +177,9 @@ function HrDashboard() {
     const [detailTab, setDetailTab] = useState("personal");
     const [sortBy, setSortBy] = useState("name");
     const [uniqueDepts, setUniqueDepts] = useState([]);
+    const [viewingDoc, setViewingDoc] = useState(null);
+    const [policies, setPolicies] = useState([]);
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
     const loadEmployees = async () => {
         try {
@@ -196,11 +204,36 @@ function HrDashboard() {
         }
     };
 
+    const loadPolicies = async () => {
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=getHRPolicies`);
+            const data = await res.json();
+            if (data.status === "success" && data.policies) {
+                setPolicies(data.policies.map(p => ({
+                    ...p,
+                    // Store the raw ID and ensure download/view URLs are correct
+                    fileId: p.id 
+                })));
+            } else if (data.status === "success" && (!data.policies || data.policies.length === 0)) {
+                // If it's success but empty, we can show fallbacks or keep it empty
+                
+            }
+        } catch (err) {
+            console.error("Error loading policies:", err);
+            // Default fallbacks only on hard network failure
+            
+        }
+    };
+
     useEffect(() => {
         const cached = localStorage.getItem("employee_cache");
         if (cached) setEmployees(JSON.parse(cached));
         loadEmployees();
-        const interval = setInterval(loadEmployees, 10000);
+        loadPolicies();
+        const interval = setInterval(() => {
+            loadEmployees();
+            loadPolicies();
+        }, 15000);
         return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -382,6 +415,10 @@ function HrDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         <span>Employees</span>
                     </div>
+                    <div className={`hr-nav-item ${activeTab === 'hrbook' ? 'active' : ''}`} onClick={() => setActiveTab('hrbook')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                        <span>HR Book</span>
+                    </div>
                 </div>
                 <div className="hr-nav-item" style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9' }} onClick={() => window.location.href = "/"}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -423,7 +460,7 @@ function HrDashboard() {
                     </div>
                 </div>
 
-                {activeTab === 'dashboard' ?
+                {activeTab === 'dashboard' ? (
                     <div className="dashboard-content">
                         {/* Top Stats Grid */}
                         <div className="hr-stats-grid">
@@ -741,7 +778,7 @@ function HrDashboard() {
                             </div>
                         </div>
                     </div>
-                    :
+                ) : activeTab === 'employees' ? (
                     <div className="employees-view-container">
                         {/* Advanced Filters Innovation */}
                         <div className="filters-row">
@@ -840,7 +877,57 @@ function HrDashboard() {
                             )}
                         </div>
                     </div>
-                }
+                ) : (
+                    /* HR Book Tab Content */
+                    <div className="animate-fade-in">
+                        <div className="widget-card" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
+                            <div className="widget-header" style={{ marginBottom: '25px' }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                <h4 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0, textTransform: 'none' }}>HR Policy repository</h4>
+                                <button
+                                    className="hr-btn-icon"
+                                    style={{ marginLeft: 'auto', background: 'var(--manager-gradient)' }}
+                                    onClick={() => setIsUploadModalOpen(true)}
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '8px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    Upload New Policy
+                                </button>
+                            </div>
+
+                            <div className="mg-books-grid">
+                                {policies.length > 0 ? policies.map((policy, i) => (
+                                    <div key={i} className="mg-book-card">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                            <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '8px', borderRadius: '10px' }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            </div>
+                                            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{policy.label}</h4>
+                                        </div>
+                                        <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px 0', lineHeight: '1.5' }}>{policy.description}</p>
+                                        <button
+                                            className="hr-btn-icon"
+                                            style={{ marginTop: 'auto', width: '100%', fontSize: '13px', padding: '10px', height: 'auto', justifyContent: 'center' }}
+                                            onClick={() => {
+                                                setViewingDoc({ 
+                                                    title: policy.label, 
+                                                    fileId: policy.id || policy.fileId,
+                                                    fileName: policy.fileName,
+                                                    downloadPath: policy.downloadUrl 
+                                                });
+                                            }}
+                                        >
+                                            View Document
+                                        </button>
+                                    </div>
+                                )) : (
+                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                        No policies found. Click "Upload New Policy" to add one.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Employee Details Modal */}
@@ -1218,6 +1305,26 @@ function HrDashboard() {
                 </div>
             )}
 
+            {/* Document Viewer Modal */}
+            {viewingDoc && (
+                <PolicyModal
+                    doc={viewingDoc}
+                    onClose={() => setViewingDoc(null)}
+                />
+            )}
+
+            {/* Policy Upload Modal */}
+            {isUploadModalOpen && (
+                <PolicyUploadModal
+                    onClose={() => setIsUploadModalOpen(false)}
+                    onSuccess={() => {
+                        setIsUploadModalOpen(false);
+                        loadPolicies();
+                    }}
+                    apiUrl={SCRIPT_URL}
+                />
+            )}
+
             {loading && (
                 <div style={{ position: 'fixed', bottom: '30px', right: '30px', background: 'white', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', z: 2000 }}>
                     <div className="loader-dot"></div>
@@ -1279,6 +1386,220 @@ function hexToRgb(hex) {
     return result ?
         `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` :
         '37, 99, 235';
+}
+
+function PolicyUploadModal({ onClose, onSuccess, apiUrl }) {
+    const [file, setFile] = useState(null);
+    const [label, setLabel] = useState("");
+    const [description, setDescription] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleUpload = async (e) => {
+        e.preventDefault();
+        if (!file || !label || !description) return alert("Please fill all fields");
+
+        setIsUploading(true);
+        try {
+            const base64 = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+
+            const payload = {
+                action: "uploadHRPolicy",
+                fileName: file.name,
+                fileType: file.type,
+                label: label,
+                description: description,
+                fileData: base64
+            };
+
+            const res = await fetch(apiUrl, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (data.status === "success") {
+                alert("Policy uploaded and indexed successfully!");
+                onSuccess();
+            } else {
+                throw new Error(data.message || "Failed to index policy in spreadsheet.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Upload failed. Please check console for details.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    return (
+        <div className="mg-modal-mask" style={{ zIndex: 2000 }} onClick={onClose}>
+            <div className="mg-modal-core animate-fade-in" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                <div className="mg-modal-top-bar">
+                    <h3 style={{ margin: 0 }}>Upload New Policy</h3>
+                    <button className="mg-modal-dismiss" onClick={onClose}>&times;</button>
+                </div>
+                <div className="mg-modal-body">
+                    <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div className="form-group">
+                            <label>Policy Label (e.g. Leave Policy)</label>
+                            <input
+                                type="text"
+                                value={label}
+                                onChange={e => setLabel(e.target.value)}
+                                required
+                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Brief Description</label>
+                            <textarea
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                required
+                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', minHeight: '80px' }}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Document File (.docx, .pdf)</label>
+                            <input
+                                type="file"
+                                accept=".docx,.pdf"
+                                onChange={e => setFile(e.target.files[0])}
+                                required
+                                style={{ width: '100%', padding: '12px', border: '1px dashed #cbd5e1', borderRadius: '8px' }}
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            className="hr-btn-icon"
+                            disabled={isUploading}
+                            style={{ background: 'var(--admin-gradient)', justifyContent: 'center' }}
+                        >
+                            {isUploading ? "Uploading..." : "Start Upload"}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function PolicyModal({ doc, onClose }) {
+    const viewerRef = useRef(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        let isMounted = true;
+        async function loadDoc() {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                // 1. Check if it's a PDF
+                const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
+                
+                if (isPdf) {
+                    // PDF can be viewed directly via Google Drive Preview Link
+                    // This is much more reliable than docx-preview for PDFs
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. It's likely a DOCX, fetch via proxy to bypass CORS
+                const proxyUrl = `${SCRIPT_URL}?action=proxyFile&fileId=${doc.fileId}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+
+                if (data.status !== "success") throw new Error(data.message || "Failed to fetch document content");
+                
+                // Convert base64 to blob
+                const byteCharacters = atob(data.base64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: data.mimeType });
+
+                if (isMounted && viewerRef.current) {
+                    viewerRef.current.innerHTML = "";
+                    await renderAsync(blob, viewerRef.current, viewerRef.current, {
+                        className: "docx",
+                        inWrapper: false,
+                        ignoreWidth: false,
+                        ignoreHeight: false,
+                        debug: false
+                    });
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error("Document rendering error:", err);
+                if (isMounted) {
+                    setError("Could not render document automatically. You can still download it using the icon above.");
+                    setLoading(false);
+                }
+            }
+        }
+        loadDoc();
+        return () => { isMounted = false; };
+    }, [doc.fileId]);
+
+    const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
+
+    return (
+        <div className="mg-modal-mask" style={{ zIndex: 1000 }} onClick={onClose}>
+            <div className="mg-modal-core animate-modal-up" style={{ width: '90%', height: '90%', maxWidth: '1200px' }} onClick={e => e.stopPropagation()}>
+                <div className="mg-modal-top-bar">
+                    <div className="mg-modal-header-info">
+                        <div className="mg-modal-avatar" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        </div>
+                        <div className="mg-modal-title-wrap">
+                            <h2 className="mg-modal-name">{doc.title}</h2>
+                            <p className="mg-modal-id">HR Policy Document</p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <a href={doc.downloadPath} download className="hr-btn-icon" style={{ padding: '8px 12px', background: '#f8fafc', color: '#475569', textDecoration: 'none', height: 'auto', boxShadow: 'none' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </a>
+                        <button className="mg-modal-dismiss" onClick={onClose}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mg-modal-body" style={{ background: '#f8fafc', padding: '0' }}>
+                    <div style={{ height: '100%', overflow: 'auto', padding: '40px 20px' }}>
+                        {loading && (
+                            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+                                <div className="mg-loader-spinner"></div>
+                                <p style={{ color: '#64748b', marginTop: '15px' }}>Rendering Policy Content...</p>
+                            </div>
+                        )}
+                        {error && (
+                            <div style={{ textAlign: 'center', padding: '100px 20px', color: '#ef4444' }}>
+                                <p>{error}</p>
+                            </div>
+                        )}
+                        {isPdf && !error && (
+                            <iframe 
+                                src={`https://drive.google.com/file/d/${doc.fileId}/preview`}
+                                style={{ width: '100%', height: 'calc(100vh - 200px)', border: 'none', borderRadius: '12px', background: 'white' }}
+                                title={doc.title}
+                            />
+                        )}
+                        {!isPdf && <div ref={viewerRef} className="docx-render-area"></div>}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export default HrDashboard;

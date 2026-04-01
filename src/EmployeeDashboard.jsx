@@ -7,6 +7,8 @@ import "./employeeDashboard.css";
 // Required for docx-preview to work correctly in some environments
 window.JSZip = JSZip;
 
+const SCRIPT_URL = process.env.REACT_APP_API_URL;
+
 
 const formatDate = (dateString) => {
   if (!dateString) return "-";
@@ -49,6 +51,7 @@ function EmployeeDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [viewingDoc, setViewingDoc] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [policies, setPolicies] = useState([]);
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -76,8 +79,28 @@ function EmployeeDashboard() {
         }
       })
       .catch((err) => console.log(err));
+
+    async function fetchPolicies() {
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=getHRPolicies`);
+            const data = await res.json();
+            if (data.status === "success" && data.policies) {
+                setPolicies(data.policies.map(p => ({
+                    ...p,
+                    fileId: p.id 
+                })));
+            }
+        } catch (err) {
+            console.error("Error loading policies:", err);
+            // Fallback demo policies
+            setPolicies([
+              { label: "Travel Policy", viewUrl: "/Hrpolicy/Travel Policy_Final.docx", downloadUrl: "/Hrpolicy/Travel Policy_Final.docx", description: "Guidelines for official travel, expenses, and trip reimbursements" }
+            ]);
+        }
+    }
+    fetchPolicies();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, API_URL]);
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("employeeLoggedIn");
@@ -222,7 +245,7 @@ function EmployeeDashboard() {
               </div>
               <div className="bento-content">
                 <div className="info-pair">
-                    <label>Personal Phone</label>
+                  <label>Personal Phone</label>
                   <div className="val">{emp.Phone || emp.Phone}</div>
                   <label>Personal Email</label>
                   <div className="val">{emp.Email || emp.email}</div>
@@ -258,11 +281,11 @@ function EmployeeDashboard() {
                 <div className="bento-title">Support</div>
               </div>
               <div className="bento-content">
-                 <div className="info-pair">
-                   <label>Emergency Contact</label>
-                   <div className="val">{emp.EmergencyName}</div>
-                   <div className="val" style={{ fontSize: '13px', marginTop: '4px' }}>{emp.EmergencyPhone} ({emp.EmergencyRelation})</div>
-                 </div>
+                <div className="info-pair">
+                  <label>Emergency Contact</label>
+                  <div className="val">{emp.EmergencyName}</div>
+                  <div className="val" style={{ fontSize: '13px', marginTop: '4px' }}>{emp.EmergencyPhone} ({emp.EmergencyRelation})</div>
+                </div>
               </div>
             </div>
 
@@ -303,25 +326,25 @@ function EmployeeDashboard() {
                 <div className="bento-title">Statutory Stream</div>
               </div>
               <div className="protocol-strip-container">
-                 <ProtocolStrip icon="🏛️" label="PF Account" value={emp.PF || emp.pfNumber} />
-                 <ProtocolStrip icon="🔗" label="UAN Index" value={emp.UAN || emp.uanNumber} />
-                 <ProtocolStrip icon="🏥" label="ESI Number" value={emp.ESINumber || emp.esiNumber} />
+                <ProtocolStrip icon="🏛️" label="PF Account" value={emp.PF || emp.pfNumber} />
+                <ProtocolStrip icon="🔗" label="UAN Index" value={emp.UAN || emp.uanNumber} />
+                <ProtocolStrip icon="🏥" label="ESI Number" value={emp.ESINumber || emp.esiNumber} />
               </div>
             </div>
 
             {/* Financial Group */}
-             <div className="bento-item bento-wide">
-               <div className="bento-header">
-                 <div className="bento-icon" style={{ background: '#fff7ed', color: '#f97316' }}>🏦</div>
-                 <div className="bento-title">Financial Profile</div>
-               </div>
-               <div className="protocol-strip-container">
-                 <ProtocolStrip icon="🏧" label="Bank Name" value={emp.BankName || emp.bankName} />
-                 <ProtocolStrip icon="🔢" label="Account Number" value={emp.AccountNumber || emp.accountNumber} />
-                 <ProtocolStrip icon="📍" label="IFSC code " value={emp.IFSC || emp.ifscCode} />
-                 <ProtocolStrip icon="📍" label="Branch Name " value={emp.Branch || emp.branchName} />
-               </div>
-             </div>
+            <div className="bento-item bento-wide">
+              <div className="bento-header">
+                <div className="bento-icon" style={{ background: '#fff7ed', color: '#f97316' }}>🏦</div>
+                <div className="bento-title">Financial Profile</div>
+              </div>
+              <div className="protocol-strip-container">
+                <ProtocolStrip icon="🏧" label="Bank Name" value={emp.BankName || emp.bankName} />
+                <ProtocolStrip icon="🔢" label="Account Number" value={emp.AccountNumber || emp.accountNumber} />
+                <ProtocolStrip icon="📍" label="IFSC code " value={emp.IFSC || emp.ifscCode} />
+                <ProtocolStrip icon="📍" label="Branch Name " value={emp.Branch || emp.branchName} />
+              </div>
+            </div>
 
             {/* Personal Group */}
             <div className="bento-item bento-wide">
@@ -333,11 +356,11 @@ function EmployeeDashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                   <Field label="Father's Name" value={emp.FatherName} />
                   <Field label="Mother's Name" value={emp.MotherName} />
-                   <Field label="Birth Date" value={formatDate(emp.DOB || emp.dob)} />
-                   <Field label="Relationship" value={emp.MaritalStatus || "Single"} />
-                   {(emp.MaritalStatus === "Married" || emp.maritalStatus === "Married") && (
-                     <Field label="Spouse Name" value={emp.SpouseName || emp.spouseName} />
-                   )}
+                  <Field label="Birth Date" value={formatDate(emp.DOB || emp.dob)} />
+                  <Field label="Relationship" value={emp.MaritalStatus || "Single"} />
+                  {(emp.MaritalStatus === "Married" || emp.maritalStatus === "Married") && (
+                    <Field label="Spouse Name" value={emp.SpouseName || emp.spouseName} />
+                  )}
                 </div>
               </div>
             </div>
@@ -350,7 +373,7 @@ function EmployeeDashboard() {
               <h3 className="section-subtitle">Academic Timeline</h3>
               <div className="glass-table-wrap">
                 <table className="glass-table">
-                   <thead>
+                  <thead>
                     <tr>
                       <th>Qualification</th>
                       <th>Specialization / Board</th>
@@ -404,7 +427,7 @@ function EmployeeDashboard() {
                     <tr>
                       <th>Certification Name</th>
                       <th>Issuing Institute</th>
-                       <th>Duration</th>
+                      <th>Duration</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -479,12 +502,12 @@ function EmployeeDashboard() {
           ];
 
           const dependentDocs = parseJSON(emp.Dependents).flatMap((dep, idx) => [
-            [`Dependent ${idx+1} Photo (${dep.name})`, dep.photoUrl, "user"],
-            [`Dependent ${idx+1} Aadhar (${dep.name})`, dep.aadharUrl, "shield"],
-            [`Dependent ${idx+1} PAN (${dep.name})`, dep.panUrl, "id-card"]
+            [`Dependent ${idx + 1} Photo (${dep.name})`, dep.photoUrl, "user"],
+            [`Dependent ${idx + 1} Aadhar (${dep.name})`, dep.aadharUrl, "shield"],
+            [`Dependent ${idx + 1} PAN (${dep.name})`, dep.panUrl, "id-card"]
           ]).filter(doc => doc[1]);
 
-          const trainingDocs = parseJSON(emp.Trainings).map((tr, idx) => 
+          const trainingDocs = parseJSON(emp.Trainings).map((tr, idx) =>
             [`Training: ${tr.name} Certificate`, tr.certificateUrl, "award"]
           ).filter(doc => doc[1]);
 
@@ -525,47 +548,47 @@ function EmployeeDashboard() {
           <div className="bento-item bento-full animate-fade">
             <h3 className="section-subtitle">HR Handbooks & Policies</h3>
             <div className="doc-bento-grid">
-              {[
-                ["Travel Policy", "/Hrpolicy/Travel Policy_Final.docx", "Guidelines for official travel, expenses, and trip reimbursements"],
-                ["Levels, Grade & Designations", "/Hrpolicy/Levels, Grade & Designations_Final.docx", "Information on organizational hierarchies and job bands"],
-                ["Leave Policy", "/Hrpolicy/Leave Policy_Final.docx", "Standard operating procedures for annual and sick leaves"],
-                ["Employees - Classification & Categorisation", "/Hrpolicy/Employees - Classification & Categorisation_Final.docx", "Details on employment types and employee classifications"],
-                ["Dress Code Policy", "/Hrpolicy/Dress Code Policy_Final.docx", "Standards for professional business attire and appearance"],
-                ["Communication Policy", "/Hrpolicy/Communication_Final.docx", "Rules regarding internal and external professional communications"],
-                ["Attendance Policy", "/Hrpolicy/Attendance Policy_Final.docx", "Working hours, timings, and attendance management rules"]
-              ].map(([lbl, link, desc], i) => (
+              {policies.length > 0 ? policies.map((policy, i) => (
                 <div key={i} className="doc-tile" style={{ display: 'flex', flexDirection: 'column' }}>
                   <div className="tile-head">
                     <div className="tile-icon" style={{ background: '#f8fafc' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                     </div>
                     <div className="tile-meta">
-                      <h4 style={{ marginBottom: '4px' }}>{lbl}</h4>
+                      <h4 style={{ marginBottom: '4px' }}>{policy.label}</h4>
                       <span className="tile-status status-valid" style={{ background: '#dcfce7', color: '#16a34a' }}>AUTHORIZED</span>
                     </div>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '10px', marginBottom: '15px' }}>{desc}</p>
-                  <button 
-                    className="btn-open" 
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '10px', marginBottom: '15px' }}>{policy.description}</p>
+                  <button
+                    className="btn-open"
                     onClick={() => {
-                      const absoluteUrl = window.location.origin + link;
-                      setViewingDoc({ title: lbl, url: absoluteUrl, downloadPath: link });
-                    }} 
+                        setViewingDoc({ 
+                            title: policy.label, 
+                            fileId: policy.id || policy.fileId,
+                            fileName: policy.fileName,
+                            downloadPath: policy.downloadUrl 
+                        });
+                    }}
                     style={{ marginTop: 'auto', cursor: 'pointer', width: '100%', border: '1px solid #e2e8f0', background: 'white', color: '#4f46e5', fontWeight: '800', padding: '10px', borderRadius: '10px' }}
                   >
                     View Document
                   </button>
                 </div>
-              ))}
+              )) : (
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                  No policies found.
+                </div>
+              )}
             </div>
           </div>
         )}
       </main>
 
       {viewingDoc && (
-        <PolicyModal 
-          doc={viewingDoc} 
-          onClose={() => setViewingDoc(null)} 
+        <PolicyModal
+          doc={viewingDoc}
+          onClose={() => setViewingDoc(null)}
         />
       )}
     </div>
@@ -598,46 +621,57 @@ function PolicyModal({ doc, onClose }) {
   const viewerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
 
   useEffect(() => {
     let isMounted = true;
-
     async function loadDoc() {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch(doc.url);
-        if (!response.ok) throw new Error("Failed to fetch document");
-        
-        const blob = await response.blob();
-        
-        if (isMounted && viewerRef.current) {
-          viewerRef.current.innerHTML = ""; // Clear loader
-          await renderAsync(blob, viewerRef.current, viewerRef.current, {
-            className: "docx",
-            inWrapper: false,
-            ignoreWidth: false,
-            ignoreHeight: false,
-            debug: false
-          });
-          setLoading(false);
+        try {
+            setLoading(true);
+            setError(null);
+            
+            if (isPdf) {
+                setLoading(false);
+                return;
+            }
+
+            // It's likely a DOCX, fetch via proxy to bypass CORS
+            const proxyUrl = `${SCRIPT_URL}?action=proxyFile&fileId=${doc.fileId}`;
+            const response = await fetch(proxyUrl);
+            const data = await response.json();
+
+            if (data.status !== "success") throw new Error(data.message || "Failed to fetch document content");
+            
+            const byteCharacters = atob(data.base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: data.mimeType });
+
+            if (isMounted && viewerRef.current) {
+                viewerRef.current.innerHTML = "";
+                await renderAsync(blob, viewerRef.current, viewerRef.current, {
+                    className: "docx",
+                    inWrapper: false,
+                    ignoreWidth: false,
+                    ignoreHeight: false,
+                    debug: false
+                });
+                setLoading(false);
+            }
+        } catch (err) {
+            console.error("Document rendering error:", err);
+            if (isMounted) {
+                setError("Could not render document automatically. You can still download it using the icon above.");
+                setLoading(false);
+            }
         }
-      } catch (err) {
-        console.error("Docx rendering error:", err);
-        if (isMounted) {
-          setError("Could not render document view. You can still download it using the icon above.");
-          setLoading(false);
-        }
-      }
     }
-
     loadDoc();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [doc.url]);
+    return () => { isMounted = false; };
+  }, [doc.fileId]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -645,7 +679,7 @@ function PolicyModal({ doc, onClose }) {
         <div className="modal-header">
           <div className="modal-header-info">
             <div className="modal-header-icon">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
             </div>
             <h3>{doc.title}</h3>
           </div>
@@ -668,12 +702,19 @@ function PolicyModal({ doc, onClose }) {
               </div>
             )}
             {error && (
-               <div className="viewer-loader">
+              <div className="viewer-loader">
                 <div className="bento-icon" style={{ background: '#fee2e2', color: '#ef4444', marginBottom: '15px' }}>⚠️</div>
                 <p>{error}</p>
               </div>
             )}
-            <div ref={viewerRef} className="docx-render-area"></div>
+            {isPdf && !error && (
+                <iframe 
+                    src={`https://drive.google.com/file/d/${doc.fileId}/preview`}
+                    style={{ width: '100%', height: 'calc(100vh - 200px)', border: 'none', borderRadius: '12px', background: 'white' }}
+                    title={doc.title}
+                />
+            )}
+            {!isPdf && <div ref={viewerRef} className="docx-render-area"></div>}
           </div>
         </div>
       </div>
