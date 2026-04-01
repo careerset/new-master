@@ -994,7 +994,7 @@ function PolicyModal({ doc, onClose }) {
         }
         loadDoc();
         return () => { isMounted = false; };
-    }, [doc.fileId]);
+    }, [doc.fileId, doc.fileName, doc.title]);
 
     const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
 

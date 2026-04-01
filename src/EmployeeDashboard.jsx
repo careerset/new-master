@@ -671,7 +671,7 @@ function PolicyModal({ doc, onClose }) {
     }
     loadDoc();
     return () => { isMounted = false; };
-  }, [doc.fileId]);
+    }, [doc.fileId, isPdf]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
