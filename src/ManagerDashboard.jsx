@@ -25,6 +25,15 @@ const formatDate = (dateString) => {
     }
 };
 
+const formatTime = (timeString) => {
+    if (!timeString) return "-";
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return timeString;
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+    } catch { return timeString; }
+};
+
 const getDriveDirectLink = (url) => {
     if (!url) return null;
     if (url.includes("drive.google.com")) {
@@ -183,7 +192,16 @@ function ManagerDashboard() {
             const res = await fetch(`${SCRIPT_URL}?action=getTeamAttendance`);
             const data = await res.json();
             if (data.status === "success") {
-                setTeamAttendance(data.attendance || []);
+                const rawAtt = data.attendance || [];
+                const normalized = rawAtt.map(a => ({
+                    empId: a.empid || a.empId || a.EmplID || a.employee_code || (a.EmployeeID ? a.EmployeeID.toString() : ""),
+                    date: a.date || a.Date,
+                    inTime: a.intime || a.inTime || a.InTime,
+                    outTime: a.outtime || a.outTime || a.OutTime,
+                    status: a.status || a.Status,
+                    location: a.inlocation || a.location || a.InLocation || a.Location
+                }));
+                setTeamAttendance(normalized);
             }
         } catch (err) {
             console.error("Error loading team attendance:", err);
@@ -888,7 +906,7 @@ function ManagerDashboard() {
                                                         </div>
                                                     </td>
                                                     <td style={{ fontSize: '13px', fontWeight: '600' }}>{emp.EmpID || emp.employee_code}</td>
-                                                    <td style={{ fontSize: '13px' }}>{att?.inTime || "-"}</td>
+                                                    <td style={{ fontSize: '13px' }}>{formatTime(att?.inTime)}</td>
                                                     <td>
                                                         <span className={`mg-status-badge ${att?.status === 'In' ? 'active' : 'inactive'}`}>
                                                             {att?.status === 'In' ? 'PRESENT' : 'AWAY'}

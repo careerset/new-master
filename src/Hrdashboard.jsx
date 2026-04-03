@@ -24,6 +24,15 @@ const formatDate = (dateString) => {
     }
 };
 
+const formatTime = (timeString) => {
+    if (!timeString) return "-";
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return timeString;
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+    } catch { return timeString; }
+};
+
 const getDriveDirectLink = (url) => {
     if (!url) return null;
     if (url.includes("drive.google.com")) {
@@ -255,7 +264,16 @@ function HrDashboard() {
             const res = await fetch(`${SCRIPT_URL}?action=getGlobalAttendance`);
             const data = await res.json();
             if (data.status === "success") {
-                setGlobalAttendance(data.attendance || []);
+                const rawAtt = data.attendance || [];
+                const normalized = rawAtt.map(a => ({
+                    empId: a.empid || a.empId || a.EmplID || a.employee_code || (a.EmployeeID ? a.EmployeeID.toString() : ""),
+                    date: a.date || a.Date,
+                    inTime: a.intime || a.inTime || a.InTime,
+                    outTime: a.outtime || a.outTime || a.OutTime,
+                    status: a.status || a.Status,
+                    location: a.inlocation || a.location || a.InLocation || a.Location
+                }));
+                setGlobalAttendance(normalized);
             }
         } catch (err) {
             console.error("Error loading global attendance:", err);
@@ -1061,8 +1079,8 @@ function HrDashboard() {
                                                             <span style={{ fontSize: '11px', color: '#64748b' }}>{emp.EmpID || emp.employee_code}</span>
                                                         </div>
                                                     </td>
-                                                    <td style={{ fontSize: '13px', color: '#059669', fontWeight: '600' }}>{latest?.inTime || "-"}</td>
-                                                    <td style={{ fontSize: '13px', color: '#dc2626', fontWeight: '600' }}>{latest?.outTime || "-"}</td>
+                                                    <td style={{ fontSize: '13px', color: '#059669', fontWeight: '600' }}>{formatTime(latest?.inTime)}</td>
+                                                    <td style={{ fontSize: '13px', color: '#dc2626', fontWeight: '600' }}>{formatTime(latest?.outTime)}</td>
                                                     <td>
                                                         <span className={`status-pill ${latest?.status === 'In' ? 'active' : latest?.status === 'Out' ? 'inactive' : 'missing'}`} style={{ 
                                                             padding: '6px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: '800',

@@ -24,6 +24,15 @@ const formatDate = (dateString) => {
     } catch { return dateString; }
 };
 
+const formatTime = (timeString) => {
+    if (!timeString) return "-";
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return timeString;
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+    } catch { return timeString; }
+};
+
 const getDriveDirectLink = (url) => {
     if (!url) return null;
     if (url.includes("drive.google.com")) {
@@ -293,7 +302,16 @@ function AdminDashboard() {
             const res = await fetch(`${SCRIPT_URL}?action=getGlobalAttendance`);
             const data = await res.json();
             if (data.status === "success") {
-                setGlobalAttendance(data.attendance || []);
+                const rawAtt = data.attendance || [];
+                const normalized = rawAtt.map(a => ({
+                    empId: a.empid || a.empId || a.EmplID || a.employee_code || (a.EmployeeID ? a.EmployeeID.toString() : ""),
+                    date: a.date || a.Date,
+                    inTime: a.intime || a.inTime || a.InTime,
+                    outTime: a.outtime || a.outTime || a.OutTime,
+                    status: a.status || a.Status,
+                    location: a.inlocation || a.location || a.InLocation || a.Location
+                }));
+                setGlobalAttendance(normalized);
             }
         } catch (err) {
             console.error("Error loading global attendance:", err);
@@ -599,8 +617,8 @@ function AdminDashboard() {
                                                                 <span style={{ fontSize: '11px', color: '#64748b' }}>{a.empId} • {emp ? normalizeDept(emp.Department) : "N/A"}</span>
                                                             </div>
                                                         </td>
-                                                        <td style={{ color: '#059669', fontWeight: '700' }}>{a.inTime || "-"}</td>
-                                                        <td style={{ color: '#dc2626', fontWeight: '700' }}>{a.outTime || "-"}</td>
+                                                        <td style={{ color: '#059669', fontWeight: '700' }}>{formatTime(a.inTime)}</td>
+                                                        <td style={{ color: '#dc2626', fontWeight: '700' }}>{formatTime(a.outTime)}</td>
                                                         <td>
                                                             <span className={`ad-status-tag ${a.status === 'In' ? 'active' : 'inactive'}`} style={{ fontSize: '10px' }}>
                                                                 {a.status === 'In' ? 'PUNCHED IN' : 'PUNCHED OUT'}

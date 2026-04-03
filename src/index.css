@@ -11,3 +11,53 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Glassmorphism & Premium UI for Attendance Hub */
+.glass-panel {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nav-btn-crystal {
+    background: white;
+    border: 1px solid #f1f5f9;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #475569;
+}
+
+.nav-btn-crystal:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #0f172a;
+    transform: translateY(-1px);
+}
+
+.calendar-pills:hover {
+    transform: scale(1.08) translateY(-2px);
+    z-index: 10;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+
+.hub-stat-node {
+    transition: all 0.3s ease;
+}
+
+.hub-stat-node:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.04) !important;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s ease forwards;
+}

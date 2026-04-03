@@ -5,11 +5,26 @@ import JSZip from "jszip";
 import * as faceapi from "@vladmandic/face-api";
 import "./employeeDashboard.css";
 
+function LegendNode({ color, label, solid }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '700', color: '#475569' }}>
+            <div style={{ 
+                width: '14px', height: '14px', borderRadius: '4px', 
+                background: solid ? 'transparent' : color, 
+                border: solid ? `2.5px solid ${color}` : 'none',
+                boxShadow: solid ? 'none' : `0 4px 10px ${color}20`
+            }}></div>
+            {label}
+        </div>
+    );
+}
+
 // Required for docx-preview to work correctly in some environments
 window.JSZip = JSZip;
 
 const SCRIPT_URL = process.env.REACT_APP_API_URL;
 
+let MODELS_LOADED = false;
 
 const formatDate = (dateString) => {
   if (!dateString) return "-";
@@ -23,6 +38,15 @@ const formatDate = (dateString) => {
   } catch {
     return dateString;
   }
+};
+
+const formatTime = (timeString) => {
+  if (!timeString) return "-";
+  try {
+    const date = new Date(timeString);
+    if (isNaN(date.getTime())) return timeString;
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+  } catch { return timeString; }
 };
 
 const getDriveDirectLink = (url) => {
@@ -57,6 +81,9 @@ function EmployeeDashboard() {
   const [punchLoading, setPunchLoading] = useState(false);
   const [todayPunch, setTodayPunch] = useState(null);
   const [showFaceVerify, setShowFaceVerify] = useState(false);
+  const [attendanceHistory, setAttendanceHistory] = useState([]);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
+  const [viewDate, setViewDate] = useState(new Date());
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -120,6 +147,39 @@ function EmployeeDashboard() {
     fetchAttendance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, API_URL]);
+
+  useEffect(() => {
+    if (activeTab === 'attendance' && attendanceHistory.length === 0) {
+        fetchAttendanceHistory();
+    }
+  }, [activeTab]);
+
+  const fetchAttendanceHistory = async () => {
+    const employeeId = localStorage.getItem("employeeId");
+    if (!employeeId || !API_URL) return;
+
+    setIsAttendanceLoading(true);
+    try {
+      const res = await fetch(`${API_URL}?action=getGlobalAttendance`);
+      const data = await res.json();
+      if (data.status === "success" && data.attendance) {
+        const filtered = data.attendance.filter(a => 
+          (a.empid || a.empId || a.EmplID || a.employee_code) === employeeId
+        ).map(a => ({
+          date: a.date || a.Date,
+          inTime: a.intime || a.inTime || a.InTime,
+          outTime: a.outtime || a.outTime || a.OutTime,
+          status: a.status || a.Status,
+          location: a.location || a.Location
+        })).reverse();
+        setAttendanceHistory(filtered);
+      }
+    } catch (err) {
+      console.error("Error loading attendance history:", err);
+    } finally {
+      setIsAttendanceLoading(false);
+    }
+  };
 
   const handlePunch = async () => {
     // Check for face verification requirement
@@ -199,6 +259,7 @@ function EmployeeDashboard() {
     { id: "profile", label: "My Hub", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
     { id: "career", label: "Growth Path", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 10l-6-6-6 6 6 6 6-6z"></path><path d="M6 10L0 16l6 6 6-6-6-6z"></path></svg> },
     { id: "documents", label: "Digital Vault", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> },
+    { id: "attendance", label: "Attendance", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> },
     { id: "books", label: "HR Books", icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg> }
   ];
 
@@ -377,7 +438,7 @@ function EmployeeDashboard() {
                 </div>
                 {todayPunch && (
                   <p className="punch-time-info">
-                    {attendanceStatus === "Punched In" ? `Shift Started: ${todayPunch.inTime}` : todayPunch.outTime ? `Shift Ended: ${todayPunch.outTime}` : "Not started yet"}
+                  {attendanceStatus === "Punched In" ? `Shift Started: ${formatTime(todayPunch.inTime)}` : todayPunch.outTime ? `Shift Ended: ${formatTime(todayPunch.outTime)}` : "Not started yet"}
                   </p>
                 )}
                 <button 
@@ -645,6 +706,209 @@ function EmployeeDashboard() {
           );
         })()}
 
+        {activeTab === "attendance" && (() => {
+            const daysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+            const firstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+            
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const currentMonth = viewDate.getMonth();
+            const currentYear = viewDate.getFullYear();
+            
+            const totalDays = daysInMonth(currentMonth, currentYear);
+            const startOffset = firstDayOfMonth(currentMonth, currentYear);
+            
+            const getStatusForDate = (dayNum) => {
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                const record = attendanceHistory.find(a => a.date === dateStr);
+                if (record) return "present";
+                
+                const checkDate = new Date(currentYear, currentMonth, dayNum);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                
+                if (checkDate < today) {
+                    const dayOfWeek = checkDate.getDay();
+                    const isSecondSaturday = dayOfWeek === 6 && Math.ceil(dayNum / 7) === 2;
+                    if (dayOfWeek === 0 || isSecondSaturday) return "week-off";
+                    return "absent";
+                }
+                return "future";
+            };
+
+            const monthStats = { present: 0, absent: 0, weekOff: 0 };
+            for (let d = 1; d <= totalDays; d++) {
+                const status = getStatusForDate(d);
+                if (status === "present") monthStats.present++;
+                else if (status === "absent") monthStats.absent++;
+                else if (status === "week-off") monthStats.weekOff++;
+            }
+
+            const activeWorkDays = monthStats.present + monthStats.absent;
+            const presencePercentage = activeWorkDays > 0 ? Math.round((monthStats.present / activeWorkDays) * 100) : 0;
+            const circleCircumference = 2 * Math.PI * 45;
+            const dashOffset = circleCircumference - (presencePercentage / 100) * circleCircumference;
+
+            return (
+                <div className="animate-fade-in" style={{ padding: '20px' }}>
+                    {/* Performance Hub Strip */}
+                    <div className="glass-panel" style={{ 
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7))',
+                        backdropFilter: 'blur(20px)',
+                        borderRadius: '32px',
+                        padding: '30px',
+                        marginBottom: '30px',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '40px',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        border: '1px solid rgba(255,255,255,0.4)',
+                        boxShadow: '0 15px 35px rgba(0,0,0,0.05)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+                            {/* Circular Progress */}
+                            <div style={{ position: 'relative', width: '110px', height: '110px' }}>
+                                <svg width="110" height="110" viewBox="0 0 110 110" style={{ transform: 'rotate(-90deg)' }}>
+                                    <circle cx="55" cy="55" r="45" fill="none" stroke="#f1f5f9" strokeWidth="10" />
+                                    <circle cx="55" cy="55" r="45" fill="none" stroke="url(#presenceGradient)" strokeWidth="10" strokeDasharray={circleCircumference} strokeDashoffset={dashOffset} strokeLinecap="round" />
+                                    <defs>
+                                        <linearGradient id="presenceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stopColor="#10b981" />
+                                            <stop offset="100%" stopColor="#3b82f6" />
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                                    <span style={{ display: 'block', fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>{presencePercentage}%</span>
+                                    <span style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Presence</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>Attendance Hub</h1>
+                                <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px', fontWeight: '600' }}>Your work-cycle metrics for {monthNames[currentMonth]} {currentYear}</p>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '20px' }}>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 25px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                                <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#10b981', textTransform: 'uppercase', marginBottom: '4px' }}>Active Days</span>
+                                <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.present}</span>
+                            </div>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 25px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                                <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#ef4444', textTransform: 'uppercase', marginBottom: '4px' }}>Missed</span>
+                                <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.absent}</span>
+                            </div>
+                            <button onClick={fetchAttendanceHistory} style={{ 
+                                background: '#0f172a', color: 'white', border: 'none', padding: '15px 25px', borderRadius: '20px', 
+                                fontWeight: '800', cursor: 'pointer', transition: 'transform 0.2s', alignSelf: 'center'
+                            }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                                {isAttendanceLoading ? "Syncing..." : "Sync Records"}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 1.5fr) 1fr', gap: '30px' }}>
+                        {/* Interactive Calendar */}
+                        <div className="glass-panel" style={{ 
+                            background: 'white', borderRadius: '32px', padding: '30px', boxShadow: '0 20px 40px rgba(0,0,0,0.03)',
+                            border: '1px solid rgba(255,255,255,1)'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px' }}>
+                                <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '900' }}>{monthNames[currentMonth]} {currentYear}</h3>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button onClick={() => setViewDate(new Date(currentYear, currentMonth - 1, 1))} className="nav-btn-crystal">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                                    </button>
+                                    <button onClick={() => setViewDate(new Date(currentYear, currentMonth + 1, 1))} className="nav-btn-crystal">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '15px' }}>
+                                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
+                                    <div key={day} style={{ fontSize: '12px', fontWeight: '900', color: '#cbd5e1', textAlign: 'center', marginBottom: '10px' }}>{day}</div>
+                                ))}
+                                {Array.from({ length: startOffset }).map((_, i) => <div key={`o-${i}`} />)}
+                                {Array.from({ length: totalDays }).map((_, i) => {
+                                    const day = i + 1;
+                                    const status = getStatusForDate(day);
+                                    const isToday = new Date().toDateString() === new Date(currentYear, currentMonth, day).toDateString();
+                                    
+                                    let style = { 
+                                        height: '55px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '16px', fontWeight: '800', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', cursor: 'default',
+                                        position: 'relative'
+                                    };
+
+                                    if (status === 'present') {
+                                        style.background = 'linear-gradient(135deg, #ecfdf5, #d1fae5)';
+                                        style.color = '#059669';
+                                        style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.1)';
+                                    } else if (status === 'absent') {
+                                        style.background = 'linear-gradient(135deg, #fff1f2, #ffe4e6)';
+                                        style.color = '#e11d48';
+                                    } else if (status === 'week-off') {
+                                        style.color = '#94a3b8';
+                                        style.background = '#f8fafc';
+                                    } else {
+                                        style.color = '#64748b';
+                                    }
+
+                                    if (isToday) {
+                                        style.border = '2px solid #4f46e5';
+                                        style.boxShadow = '0 0 20px rgba(79, 70, 229, 0.15)';
+                                    }
+
+                                    return (
+                                        <div key={day} style={style} className="calendar-pills" onMouseOver={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.08) translateY(-2px)';
+                                            e.currentTarget.style.zIndex = '1';
+                                        }} onMouseOut={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1) translateY(0)';
+                                            e.currentTarget.style.zIndex = '0';
+                                        }}>
+                                            {day}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Side Details Pane */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                            <div className="glass-panel" style={{ background: '#0f172a', borderRadius: '32px', padding: '30px', color: 'white' }}>
+                                <h4 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '800' }}>Work Schedule</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '15px' }}>
+                                        <span style={{ fontSize: '13px', color: '#94a3b8' }}>Standard Shift</span>
+                                        <span style={{ fontSize: '13px', fontWeight: '700' }}>09:30 AM - 06:30 PM</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '15px' }}>
+                                        <span style={{ fontSize: '13px', color: '#94a3b8' }}>Week Offs</span>
+                                        <span style={{ fontSize: '13px', fontWeight: '700' }}>SUN & 2ND SAT</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="glass-panel" style={{ background: 'white', borderRadius: '32px', padding: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                                <h4 style={{ margin: '0 0 20px 0', fontSize: '14px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Legend</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                    <LegendNode color="#10b981" label="Punched In" />
+                                    <LegendNode color="#ef4444" label="Not Reported" />
+                                    <LegendNode color="#94a3b8" label="Week Off (Sun/2nd Sat)" />
+                                    <LegendNode color="#4f46e5" label="Current Day" solid={true} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        })()}
+
+
+
         {activeTab === "books" && (
           <div className="bento-item bento-full animate-fade">
             <h3 className="section-subtitle">HR Handbooks & Policies</h3>
@@ -717,11 +981,14 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
 
         async function init() {
             try {
-                // 1. Load Face API models
-                setStatus("Waking up Biometric Engine...");
-                await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-                await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                // 1. Load Face API models once per session
+                if (!MODELS_LOADED) {
+                    setStatus("Waking up Biometric Engine...");
+                    await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+                    await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                    await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                    MODELS_LOADED = true;
+                }
                 
                 if (!isMounted) return;
                 setLoadingModels(false);
@@ -737,18 +1004,34 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                 let photoImg;
                 try {
                     const res = await fetch(profilePhoto);
+                    if (!res.ok) throw new Error("Direct fetch status: " + res.status);
                     const blob = await res.blob();
                     photoImg = await faceapi.bufferToImage(blob);
                 } catch (err) {
                     console.warn("Direct profile photo fetch failed, trying proxy...", err);
-                    const fileId = profilePhoto.split('id=')[1] || profilePhoto.match(/[-\w]{25,}/)[0];
+                    
+                    const driveIdMatch = profilePhoto.match(/[-\w]{25,}/);
+                    const fileId = profilePhoto.includes('id=') ? profilePhoto.split('id=')[1] : (driveIdMatch ? driveIdMatch[0] : null);
+                    
+                    if (!fileId) throw new Error("Could not find a valid photo ID to load.");
+
                     const proxyRes = await fetch(`${scriptUrl}?action=proxyFile&fileId=${fileId}`);
+                    
+                    if (!proxyRes.ok) {
+                        throw new Error(`Cloud Proxy Error: ${proxyRes.status} ${proxyRes.statusText}`);
+                    }
+
+                    const contentType = proxyRes.headers.get("content-type");
+                    if (!contentType || !contentType.includes("application/json")) {
+                        throw new Error("Server returned an invalid response format (HTML instead of data). Check your script deployment.");
+                    }
+
                     const proxyData = await proxyRes.json();
                     if (proxyData.status === "success") {
                         const blob = await (await fetch(`data:${proxyData.mimeType};base64,${proxyData.base64}`)).blob();
                         photoImg = await faceapi.bufferToImage(blob);
                     } else {
-                        throw new Error("Could not load profile photo from repository.");
+                        throw new Error(proxyData.message || "Cloud data retrieval failed.");
                     }
                 }
 
@@ -793,7 +1076,7 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                         // Keep current status unless we just verified
                     }
                     
-                    setTimeout(checkFace, 600);
+                    setTimeout(checkFace, 400);
                 };
 
                 checkFace();
