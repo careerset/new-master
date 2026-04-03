@@ -761,14 +761,23 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                 const faceMatcher = new faceapi.FaceMatcher(profileDetection.descriptor, 0.6);
 
                 // 4. Start Continuous Verification
-                setStatus("Aligning Face for Scan...");
+                setStatus("Aligning... Please stay in frame and look at the camera.");
+                let detectionCount = 0;
+                
                 const checkFace = async () => {
                     if (!isMounted || !videoRef.current) return;
                     
+                    detectionCount++;
+                    if (detectionCount % 5 === 0 && matchStatus !== "verified") {
+                        setStatus("Still searching for your face... Try moving closer or improving light.");
+                    }
+
                     const detections = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
                     
                     if (detections) {
+                        setStatus("Face detected! Comparing with profile...");
                         const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
+                        
                         if (bestMatch.label !== 'unknown') {
                             setMatchStatus("verified");
                             setStatus("Identity Confirmed!");
@@ -778,10 +787,10 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                             // Calculate match percentage for better feedback
                             const matchScore = Math.round((1 - bestMatch.distance) * 100);
                             setMatchStatus("mismatch");
-                            setStatus(`Identity Mismatch (${matchScore}% match). Please ensure good lighting.`);
+                            setStatus(`Identity Mismatch (${matchScore}% match). Please look directly at the camera.`);
                         }
-                    } else {
-                        setStatus("Face not detected. Stay in frame and look at the camera.");
+                    } else if (matchStatus !== "verified") {
+                        // Keep current status unless we just verified
                     }
                     
                     setTimeout(checkFace, 600);
