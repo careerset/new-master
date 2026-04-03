@@ -734,15 +734,13 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                 // 3. Process Profile Photo to get Descriptor
                 setStatus("Extracting Registered Features...");
                 
-                // Fetch profile photo as blob to bypass CORS if standard link fails
                 let photoImg;
                 try {
-                    // Try direct fetch first
                     const res = await fetch(profilePhoto);
                     const blob = await res.blob();
                     photoImg = await faceapi.bufferToImage(blob);
-                } catch {
-                    // Fallback to proxy
+                } catch (err) {
+                    console.warn("Direct profile photo fetch failed, trying proxy...", err);
                     const fileId = profilePhoto.split('id=')[1] || profilePhoto.match(/[-\w]{25,}/)[0];
                     const proxyRes = await fetch(`${scriptUrl}?action=proxyFile&fileId=${fileId}`);
                     const proxyData = await proxyRes.json();
@@ -750,14 +748,17 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                         const blob = await (await fetch(`data:${proxyData.mimeType};base64,${proxyData.base64}`)).blob();
                         photoImg = await faceapi.bufferToImage(blob);
                     } else {
-                        throw new Error("Could not load profile photo");
+                        throw new Error("Could not load profile photo from repository.");
                     }
                 }
 
-                const profileDescriptor = await faceapi.computeFaceDescriptor(photoImg);
-                if (!profileDescriptor) throw new Error("No face detected in profile photo");
+                // Enhanced profile descriptor extraction
+                const profileDetection = await faceapi.detectSingleFace(photoImg).withFaceLandmarks().withFaceDescriptor();
+                if (!profileDetection) {
+                    throw new Error("Face not detected in your registered profile photo. Please contact HR to update your photo.");
+                }
 
-                const faceMatcher = new faceapi.FaceMatcher(profileDescriptor, 0.6);
+                const faceMatcher = new faceapi.FaceMatcher(profileDetection.descriptor, 0.6);
 
                 // 4. Start Continuous Verification
                 setStatus("Aligning Face for Scan...");
@@ -774,21 +775,24 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                             setTimeout(() => { if (isMounted) onVerified(); }, 1500);
                             return;
                         } else {
+                            // Calculate match percentage for better feedback
+                            const matchScore = Math.round((1 - bestMatch.distance) * 100);
                             setMatchStatus("mismatch");
-                            setStatus("Identity Mismatch. Please realign.");
+                            setStatus(`Identity Mismatch (${matchScore}% match). Please ensure good lighting.`);
                         }
                     } else {
-                        setStatus("Face not detected. Stay in frame.");
+                        setStatus("Face not detected. Stay in frame and look at the camera.");
                     }
                     
-                    setTimeout(checkFace, 500);
+                    setTimeout(checkFace, 600);
                 };
 
                 checkFace();
 
             } catch (err) {
-                console.error(err);
+                console.error("Biometric Error:", err);
                 setStatus("Verification Error: " + err.message);
+                setMatchStatus("mismatch");
             }
         }
 
