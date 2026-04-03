@@ -126,7 +126,6 @@ function ManagerDashboard() {
     const [uniqueDepts, setUniqueDepts] = useState([]);
     const [celebMonth, setCelebMonth] = useState(new Date().getMonth() + 1);
     const [teamAttendance, setTeamAttendance] = useState([]);
-    const [attendanceLoading, setAttendanceLoading] = useState(false);
     const navigate = useNavigate();
 
     const normalizeDept = (dept) => {
@@ -181,7 +180,6 @@ function ManagerDashboard() {
 
     const loadTeamAttendance = async () => {
         try {
-            setAttendanceLoading(true);
             const res = await fetch(`${SCRIPT_URL}?action=getTeamAttendance`);
             const data = await res.json();
             if (data.status === "success") {
@@ -190,7 +188,6 @@ function ManagerDashboard() {
         } catch (err) {
             console.error("Error loading team attendance:", err);
         } finally {
-            setAttendanceLoading(false);
         }
     };
 

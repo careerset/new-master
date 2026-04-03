@@ -57,7 +57,6 @@ function EmployeeDashboard() {
   const [punchLoading, setPunchLoading] = useState(false);
   const [todayPunch, setTodayPunch] = useState(null);
   const [showFaceVerify, setShowFaceVerify] = useState(false);
-  const [verificationError, setVerificationError] = useState("");
 
   const API_URL = process.env.REACT_APP_API_URL;
 

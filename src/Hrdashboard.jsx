@@ -181,7 +181,6 @@ function HrDashboard() {
     const [policies, setPolicies] = useState([]);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [globalAttendance, setGlobalAttendance] = useState([]);
-    const [attendanceLoading, setAttendanceLoading] = useState(false);
     const [attFilterDate, setAttFilterDate] = useState(new Date().toISOString().split('T')[0]);
     const [attFilterDept, setAttFilterDept] = useState("All");
     const [attFilterStatus, setAttFilterStatus] = useState("All");
@@ -253,7 +252,6 @@ function HrDashboard() {
     };
     const loadGlobalAttendance = async () => {
         try {
-            setAttendanceLoading(true);
             const res = await fetch(`${SCRIPT_URL}?action=getGlobalAttendance`);
             const data = await res.json();
             if (data.status === "success") {
@@ -262,7 +260,6 @@ function HrDashboard() {
         } catch (err) {
             console.error("Error loading global attendance:", err);
         } finally {
-            setAttendanceLoading(false);
         }
     };
 
