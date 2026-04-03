@@ -180,6 +180,11 @@ function HrDashboard() {
     const [viewingDoc, setViewingDoc] = useState(null);
     const [policies, setPolicies] = useState([]);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [globalAttendance, setGlobalAttendance] = useState([]);
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
+    const [attFilterDate, setAttFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [attFilterDept, setAttFilterDept] = useState("All");
+    const [attFilterStatus, setAttFilterStatus] = useState("All");
 
     const loadEmployees = async () => {
         try {
@@ -212,16 +217,52 @@ function HrDashboard() {
                 setPolicies(data.policies.map(p => ({
                     ...p,
                     // Store the raw ID and ensure download/view URLs are correct
-                    fileId: p.id 
+                    fileId: p.id
                 })));
             } else if (data.status === "success" && (!data.policies || data.policies.length === 0)) {
                 // If it's success but empty, we can show fallbacks or keep it empty
-                
+
             }
         } catch (err) {
             console.error("Error loading policies:", err);
             // Default fallbacks only on hard network failure
-            
+
+        }
+    };
+
+    const handleDeletePolicy = async (policyId, label) => {
+        if (!window.confirm(`Are you sure you want to delete the policy "${label}"? This action cannot be undone.`)) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=deleteHRPolicy&id=${policyId}`);
+            const data = await res.json();
+
+            if (data.status === "success") {
+                alert("Policy deleted successfully!");
+                loadPolicies();
+            } else {
+                throw new Error(data.message || "Failed to delete policy.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Deletion failed: " + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+    const loadGlobalAttendance = async () => {
+        try {
+            setAttendanceLoading(true);
+            const res = await fetch(`${SCRIPT_URL}?action=getGlobalAttendance`);
+            const data = await res.json();
+            if (data.status === "success") {
+                setGlobalAttendance(data.attendance || []);
+            }
+        } catch (err) {
+            console.error("Error loading global attendance:", err);
+        } finally {
+            setAttendanceLoading(false);
         }
     };
 
@@ -230,9 +271,11 @@ function HrDashboard() {
         if (cached) setEmployees(JSON.parse(cached));
         loadEmployees();
         loadPolicies();
+        loadGlobalAttendance();
         const interval = setInterval(() => {
             loadEmployees();
             loadPolicies();
+            loadGlobalAttendance();
         }, 15000);
         return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -419,6 +462,10 @@ function HrDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                         <span>HR Book</span>
                     </div>
+                    <div className={`hr-nav-item ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
+                        <span>Attendance</span>
+                    </div>
                 </div>
                 <div className="hr-nav-item" style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9' }} onClick={() => window.location.href = "/"}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -521,6 +568,13 @@ function HrDashboard() {
                                 }).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="16" y1="11" x2="22" y2="11"></line></svg>}
                                 color="#ec4899"
+                            />
+                            <StatCardV2
+                                label="Today's Presence"
+                                value={`${globalAttendance.filter(a => a.status === 'In' && a.date === new Date().toISOString().split('T')[0]).length} / ${employees.length}`}
+                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>}
+                                color="#8b5cf6"
+                                onClick={() => setActiveTab('attendance')}
                             />
                         </div>
 
@@ -877,7 +931,7 @@ function HrDashboard() {
                             )}
                         </div>
                     </div>
-                ) : (
+                ) : activeTab === 'hrbook' ? (
                     /* HR Book Tab Content */
                     <div className="animate-fade-in">
                         <div className="widget-card" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
@@ -904,20 +958,31 @@ function HrDashboard() {
                                             <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{policy.label}</h4>
                                         </div>
                                         <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px 0', lineHeight: '1.5' }}>{policy.description}</p>
-                                        <button
-                                            className="hr-btn-icon"
-                                            style={{ marginTop: 'auto', width: '100%', fontSize: '13px', padding: '10px', height: 'auto', justifyContent: 'center' }}
-                                            onClick={() => {
-                                                setViewingDoc({ 
-                                                    title: policy.label, 
-                                                    fileId: policy.id || policy.fileId,
-                                                    fileName: policy.fileName,
-                                                    downloadPath: policy.downloadUrl 
-                                                });
-                                            }}
-                                        >
-                                            View Document
-                                        </button>
+                                        <div style={{ marginTop: 'auto', display: 'flex', gap: '10px' }}>
+                                            <button
+                                                className="hr-btn-icon"
+                                                style={{ flex: 1, fontSize: '13px', padding: '10px', height: 'auto', justifyContent: 'center' }}
+                                                onClick={() => {
+                                                    setViewingDoc({
+                                                        title: policy.label,
+                                                        fileId: policy.id || policy.fileId,
+                                                        fileName: policy.fileName,
+                                                        downloadPath: policy.downloadUrl
+                                                    });
+                                                }}
+                                            >
+                                                View Document
+                                            </button>
+                                            <button
+                                                className="hr-btn-icon btn-delete-policy"
+                                                style={{ width: '40px', padding: '10px', height: 'auto', justifyContent: 'center', background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca' }}
+                                                onClick={() => handleDeletePolicy(policy.id || policy.fileId, policy.label)}
+                                                title="Delete Policy"
+                                            >
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                            </button>
+                                        </div>
+
                                     </div>
                                 )) : (
                                     <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
@@ -927,6 +992,103 @@ function HrDashboard() {
                             </div>
                         </div>
                     </div>
+                ) : activeTab === 'attendance' ? (
+                    <div className="attendance-central-panel animate-fade-in">
+                        <div className="filter-shelf" style={{ background: 'white', padding: '25px', borderRadius: '20px', marginBottom: '25px', display: 'flex', gap: '20px', alignItems: 'flex-end', border: '1px solid #f1f5f9' }}>
+                            <div className="filter-unit" style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Tracking Date</label>
+                                <input type="date" value={attFilterDate} onChange={(e) => setAttFilterDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0' }} />
+                            </div>
+                            <div className="filter-unit" style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Department</label>
+                                <select value={attFilterDept} onChange={(e) => setAttFilterDept(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                    {[ "All", ...uniqueDepts].map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </div>
+                            <div className="filter-unit" style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Punch Status</label>
+                                <select value={attFilterStatus} onChange={(e) => setAttFilterStatus(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                    <option value="All">All Status</option>
+                                    <option value="In">Present (In)</option>
+                                    <option value="Out">Left (Out)</option>
+                                    <option value="Missing">Not Punched</option>
+                                </select>
+                            </div>
+                            <button className="hr-btn-icon" onClick={loadGlobalAttendance} style={{ height: '42px', width: '120px' }}>Sync Logs</button>
+                        </div>
+
+                        <div className="widget-card" style={{ background: 'white', borderRadius: '24px', padding: '0', overflow: 'hidden' }}>
+                            <div style={{ padding: '25px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>Global Attendance Ledger</h3>
+                                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                    Showing logs for <strong>{formatDate(attFilterDate)}</strong>
+                                </div>
+                            </div>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="hr-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Employee</th>
+                                            <th>Dept / ID</th>
+                                            <th>In Time</th>
+                                            <th>Out Time</th>
+                                            <th>Status</th>
+                                            <th>Location Info</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {employees.filter(e => attFilterDept === "All" || normalizeDept(e.Department) === attFilterDept).map(emp => {
+                                            const logs = globalAttendance.filter(a => a.empId === (emp.EmpID || emp.employee_code) && a.date === attFilterDate);
+                                            const latest = logs[logs.length - 1]; // Get latest punch of the day
+                                            
+                                            if (attFilterStatus !== "All") {
+                                                if (attFilterStatus === "Missing" && latest) return null;
+                                                if (attFilterStatus !== "Missing" && (!latest || latest.status !== attFilterStatus)) return null;
+                                                if (attFilterStatus === "Missing" && !latest) { /* keep */ }
+                                            }
+
+                                            return (
+                                                <tr key={emp.EmpID || emp.employee_code}>
+                                                    <td>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div className="hire-avatar" style={{ background: '#f1f5f9', color: '#64748b' }}>{emp.Name?.[0]}</div>
+                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                <span style={{ fontWeight: '700', fontSize: '14px' }}>{emp.Name}</span>
+                                                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>{emp.Designation}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ fontWeight: '600', fontSize: '13px' }}>{normalizeDept(emp.Department)}</span>
+                                                            <span style={{ fontSize: '11px', color: '#64748b' }}>{emp.EmpID || emp.employee_code}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ fontSize: '13px', color: '#059669', fontWeight: '600' }}>{latest?.inTime || "-"}</td>
+                                                    <td style={{ fontSize: '13px', color: '#dc2626', fontWeight: '600' }}>{latest?.outTime || "-"}</td>
+                                                    <td>
+                                                        <span className={`status-pill ${latest?.status === 'In' ? 'active' : latest?.status === 'Out' ? 'inactive' : 'missing'}`} style={{ 
+                                                            padding: '6px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: '800',
+                                                            background: latest?.status === 'In' ? '#ecfdf5' : latest?.status === 'Out' ? '#f1f5f9' : '#fff1f2',
+                                                            color: latest?.status === 'In' ? '#10b981' : latest?.status === 'Out' ? '#64748b' : '#ef4444',
+                                                            border: 'none'
+                                                        }}>
+                                                            {latest?.status === 'In' ? 'PUNCHED IN' : latest?.status === 'Out' ? 'PUNCHED OUT' : 'NOT PUNCHED'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ fontSize: '11px', color: '#94a3b8', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {latest?.location || "No GeoData"}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ padding: '100px', textAlign: 'center', color: '#64748b' }}>Select a tab to begin</div>
                 )}
             </div>
 
@@ -1499,10 +1661,10 @@ function PolicyModal({ doc, onClose }) {
             try {
                 setLoading(true);
                 setError(null);
-                
+
                 // 1. Check if it's a PDF
                 const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
-                
+
                 if (isPdf) {
                     // PDF can be viewed directly via Google Drive Preview Link
                     // This is much more reliable than docx-preview for PDFs
@@ -1516,7 +1678,7 @@ function PolicyModal({ doc, onClose }) {
                 const data = await response.json();
 
                 if (data.status !== "success") throw new Error(data.message || "Failed to fetch document content");
-                
+
                 // Convert base64 to blob
                 const byteCharacters = atob(data.base64);
                 const byteNumbers = new Array(byteCharacters.length);
@@ -1547,6 +1709,7 @@ function PolicyModal({ doc, onClose }) {
         }
         loadDoc();
         return () => { isMounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [doc.fileId, doc.fileName, doc.title]);
 
     const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');
@@ -1588,7 +1751,7 @@ function PolicyModal({ doc, onClose }) {
                             </div>
                         )}
                         {isPdf && !error && (
-                            <iframe 
+                            <iframe
                                 src={`https://drive.google.com/file/d/${doc.fileId}/preview`}
                                 style={{ width: '100%', height: 'calc(100vh - 200px)', border: 'none', borderRadius: '12px', background: 'white' }}
                                 title={doc.title}

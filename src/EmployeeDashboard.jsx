@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { renderAsync } from "docx-preview";
 import JSZip from "jszip";
+import * as faceapi from "@vladmandic/face-api";
 import "./employeeDashboard.css";
 
 // Required for docx-preview to work correctly in some environments
@@ -52,6 +53,11 @@ function EmployeeDashboard() {
   const [viewingDoc, setViewingDoc] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [policies, setPolicies] = useState([]);
+  const [attendanceStatus, setAttendanceStatus] = useState("Punched Out");
+  const [punchLoading, setPunchLoading] = useState(false);
+  const [todayPunch, setTodayPunch] = useState(null);
+  const [showFaceVerify, setShowFaceVerify] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -98,9 +104,80 @@ function EmployeeDashboard() {
             ]);
         }
     }
+    async function fetchAttendance() {
+        try {
+            const res = await fetch(`${API_URL}?action=getAttendanceStatus&empId=${employeeId}`);
+            const data = await res.json();
+            if (data.status === "success") {
+                setAttendanceStatus(data.isPunchedIn ? "Punched In" : "Punched Out");
+                setTodayPunch(data.punchDetails);
+            }
+        } catch (err) {
+            console.error("Error fetching attendance status:", err);
+        }
+    }
+
     fetchPolicies();
+    fetchAttendance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
+  }, [navigate, API_URL]);
+
+  const handlePunch = async () => {
+    // Check for face verification requirement
+    if (employeeData?.Photo) {
+      setShowFaceVerify(true);
+      return;
+    }
+    // If no photo set, proceed with standard punch
+    proceedWithPunch();
+  };
+
+  const proceedWithPunch = async () => {
+    const employeeId = localStorage.getItem("employeeId");
+    if (!employeeId || !API_URL) return;
+
+    setPunchLoading(true);
+    const newStatus = attendanceStatus === "Punched In" ? "Out" : "In";
+    
+    try {
+        const formData = new URLSearchParams();
+        formData.append("action", "punchAttendance");
+        formData.append("empId", employeeId);
+        formData.append("status", newStatus);
+        
+        if (navigator.geolocation) {
+            await new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        formData.append("location", `${pos.coords.latitude},${pos.coords.longitude}`);
+                        resolve();
+                    },
+                    () => resolve()
+                );
+            });
+        }
+
+        const res = await fetch(API_URL, {
+            method: "POST",
+            body: formData,
+        });
+
+        const data = await res.json();
+        if (data.status === "success") {
+            setAttendanceStatus(newStatus === "In" ? "Punched In" : "Punched Out");
+            setTodayPunch(data.punchDetails);
+            alert(`Punched ${newStatus === "In" ? "In" : "Out"} successfully!`);
+            setShowFaceVerify(false);
+        } else {
+            alert("Error: " + (data.message || "Failed to mark attendance"));
+        }
+    } catch (err) {
+        console.error("Punch error:", err);
+        alert("Server connection error during punch-in.");
+    } finally {
+        setPunchLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("employeeLoggedIn");
@@ -286,6 +363,31 @@ function EmployeeDashboard() {
                   <div className="val">{emp.EmergencyName}</div>
                   <div className="val" style={{ fontSize: '13px', marginTop: '4px' }}>{emp.EmergencyPhone} ({emp.EmergencyRelation})</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Attendance Punch Bento */}
+            <div className={`bento-item punch-bento ${attendanceStatus === "Punched In" ? "active-punch" : ""}`}>
+              <div className="bento-header">
+                <div className="bento-icon" style={{ background: attendanceStatus === "Punched In" ? "#ecfdf5" : "#fef2f2", color: attendanceStatus === "Punched In" ? "#10b981" : "#ef4444" }}>⏱️</div>
+                <div className="bento-title">Daily Attendance</div>
+              </div>
+              <div className="bento-content" style={{ textAlign: 'center', paddingTop: '10px' }}>
+                <div className={`punch-status-label ${attendanceStatus === "Punched In" ? "in" : "out"}`}>
+                  {attendanceStatus}
+                </div>
+                {todayPunch && (
+                  <p className="punch-time-info">
+                    {attendanceStatus === "Punched In" ? `Shift Started: ${todayPunch.inTime}` : todayPunch.outTime ? `Shift Ended: ${todayPunch.outTime}` : "Not started yet"}
+                  </p>
+                )}
+                <button 
+                  className={`punch-action-btn ${attendanceStatus === "Punched In" ? "out-btn" : "in-btn"}`}
+                  onClick={handlePunch}
+                  disabled={punchLoading}
+                >
+                  {punchLoading ? <div className="spinner mini"></div> : (attendanceStatus === "Punched In" ? "Punch Out" : "Punch In Now")}
+                </button>
               </div>
             </div>
 
@@ -591,8 +693,139 @@ function EmployeeDashboard() {
           onClose={() => setViewingDoc(null)}
         />
       )}
+
+      {showFaceVerify && (
+        <FaceVerifyModal
+          profilePhoto={getDriveDirectLink(emp.Photo)}
+          onVerified={proceedWithPunch}
+          onClose={() => setShowFaceVerify(false)}
+          scriptUrl={SCRIPT_URL}
+        />
+      )}
     </div>
   );
+}
+
+function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
+    const videoRef = useRef();
+    const [status, setStatus] = useState("Initializing AI Models...");
+    const [matchStatus, setMatchStatus] = useState(null);
+    const [loadingModels, setLoadingModels] = useState(true);
+
+    useEffect(() => {
+        let stream = null;
+        let isMounted = true;
+
+        async function init() {
+            try {
+                // 1. Load Face API models
+                setStatus("Waking up Biometric Engine...");
+                await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                
+                if (!isMounted) return;
+                setLoadingModels(false);
+
+                // 2. Start Camera
+                setStatus("Accessing Secure Camera...");
+                stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                if (videoRef.current) videoRef.current.srcObject = stream;
+
+                // 3. Process Profile Photo to get Descriptor
+                setStatus("Extracting Registered Features...");
+                
+                // Fetch profile photo as blob to bypass CORS if standard link fails
+                let photoImg;
+                try {
+                    // Try direct fetch first
+                    const res = await fetch(profilePhoto);
+                    const blob = await res.blob();
+                    photoImg = await faceapi.bufferToImage(blob);
+                } catch {
+                    // Fallback to proxy
+                    const fileId = profilePhoto.split('id=')[1] || profilePhoto.match(/[-\w]{25,}/)[0];
+                    const proxyRes = await fetch(`${scriptUrl}?action=proxyFile&fileId=${fileId}`);
+                    const proxyData = await proxyRes.json();
+                    if (proxyData.status === "success") {
+                        const blob = await (await fetch(`data:${proxyData.mimeType};base64,${proxyData.base64}`)).blob();
+                        photoImg = await faceapi.bufferToImage(blob);
+                    } else {
+                        throw new Error("Could not load profile photo");
+                    }
+                }
+
+                const profileDescriptor = await faceapi.computeFaceDescriptor(photoImg);
+                if (!profileDescriptor) throw new Error("No face detected in profile photo");
+
+                const faceMatcher = new faceapi.FaceMatcher(profileDescriptor, 0.6);
+
+                // 4. Start Continuous Verification
+                setStatus("Aligning Face for Scan...");
+                const checkFace = async () => {
+                    if (!isMounted || !videoRef.current) return;
+                    
+                    const detections = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
+                    
+                    if (detections) {
+                        const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
+                        if (bestMatch.label !== 'unknown') {
+                            setMatchStatus("verified");
+                            setStatus("Identity Confirmed!");
+                            setTimeout(() => { if (isMounted) onVerified(); }, 1500);
+                            return;
+                        } else {
+                            setMatchStatus("mismatch");
+                            setStatus("Identity Mismatch. Please realign.");
+                        }
+                    } else {
+                        setStatus("Face not detected. Stay in frame.");
+                    }
+                    
+                    setTimeout(checkFace, 500);
+                };
+
+                checkFace();
+
+            } catch (err) {
+                console.error(err);
+                setStatus("Verification Error: " + err.message);
+            }
+        }
+
+        init();
+        return () => {
+            isMounted = false;
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        };
+    }, [profilePhoto, onVerified, scriptUrl]);
+
+    return (
+        <div className="face-verify-overlay" onClick={onClose}>
+            <div className="face-verify-content animate-pop" onClick={e => e.stopPropagation()}>
+                <div className="face-verify-header">
+                    <h3>Secure Identity Verification</h3>
+                    <button className="btn-close-modal" onClick={onClose}>×</button>
+                </div>
+                <div className="face-verify-body">
+                    <div className={`camera-container ${matchStatus}`}>
+                        <video ref={videoRef} autoPlay muted playsInline></video>
+                        <div className="scanner-line"></div>
+                        {loadingModels && <div className="loader-overlay"><div className="spinner"></div></div>}
+                    </div>
+                    <div className="status-shelf">
+                        <div className={`status-node ${matchStatus === 'verified' ? 'success' : ''}`}>
+                            <div className="status-pulse"></div>
+                            <span>{status}</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="face-verify-footer">
+                    <p>Comparison performed locally on device • Data not stored</p>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function ProtocolStrip({ icon, label, value }) {
@@ -635,7 +868,6 @@ function PolicyModal({ doc, onClose }) {
                 return;
             }
 
-            // It's likely a DOCX, fetch via proxy to bypass CORS
             const proxyUrl = `${SCRIPT_URL}?action=proxyFile&fileId=${doc.fileId}`;
             const response = await fetch(proxyUrl);
             const data = await response.json();
@@ -671,7 +903,7 @@ function PolicyModal({ doc, onClose }) {
     }
     loadDoc();
     return () => { isMounted = false; };
-    }, [doc.fileId, isPdf]);
+    }, [doc.fileId, isPdf, doc.fileName, doc.title]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>

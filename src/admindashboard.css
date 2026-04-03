@@ -460,3 +460,39 @@ body, select, input, button, textarea {
 .ad-sync-indicator {
     position: fixed; bottom: 30px; right: 30px; background: white; padding: 14px 24px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; z-index: 3000; border: 1.5px solid #f1f5f9; font-weight: 700; font-size: 13px;
 }
+
+/* ATTENDANCE GLOBAL REGISTRY */
+.ad-attendance-panel {
+    animation: adFadeIn 0.4s ease-out forwards;
+}
+
+.ad-attendance-panel .ad-filter-shelf {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+}
+
+.ad-attendance-panel .ad-filter-unit input[type="date"] {
+    width: 100%;
+}
+
+.ad-attendance-panel .mg-data-table th {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 15px 25px;
+}
+
+.ad-attendance-panel .mg-data-table td {
+    padding: 15px 25px;
+}
+
+.ad-attendance-panel .ad-status-tag.active {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid rgba(5, 150, 105, 0.1);
+}
+
+.ad-attendance-panel .ad-status-tag.inactive {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid rgba(100, 116, 139, 0.1);
+}

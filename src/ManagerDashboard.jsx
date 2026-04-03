@@ -125,6 +125,8 @@ function ManagerDashboard() {
     const [sortBy, setSortBy] = useState("name");
     const [uniqueDepts, setUniqueDepts] = useState([]);
     const [celebMonth, setCelebMonth] = useState(new Date().getMonth() + 1);
+    const [teamAttendance, setTeamAttendance] = useState([]);
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
     const navigate = useNavigate();
 
     const normalizeDept = (dept) => {
@@ -177,14 +179,31 @@ function ManagerDashboard() {
         }
     };
 
+    const loadTeamAttendance = async () => {
+        try {
+            setAttendanceLoading(true);
+            const res = await fetch(`${SCRIPT_URL}?action=getTeamAttendance`);
+            const data = await res.json();
+            if (data.status === "success") {
+                setTeamAttendance(data.attendance || []);
+            }
+        } catch (err) {
+            console.error("Error loading team attendance:", err);
+        } finally {
+            setAttendanceLoading(false);
+        }
+    };
+
     useEffect(() => {
         const cached = localStorage.getItem("employee_cache");
         if (cached) setEmployees(JSON.parse(cached));
         loadEmployees();
         loadPolicies();
+        loadTeamAttendance();
         const intv = setInterval(() => {
             loadEmployees();
             loadPolicies();
+            loadTeamAttendance();
         }, 15000);
         return () => clearInterval(intv);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -383,6 +402,10 @@ function ManagerDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                         <span>HR Books</span>
                     </div>
+                    <div className={`mg-nav-link ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
+                        <span>Attendance</span>
+                    </div>
                 </div>
                 <div className="mg-nav-link mg-logout-btn" style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9' }} onClick={() => navigate("/manager-login")}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -474,6 +497,14 @@ function ManagerDashboard() {
                                 }).length}
                                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>}
                                 color="#f97316"
+                            />
+                            <StatCardV2
+                                label="Today's Presence"
+                                value={`${teamAttendance.filter(a => a.status === 'In').length} / ${employees.length}`}
+                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>}
+                                color="#8b5cf6"
+                                percentage={employees.length > 0 ? Math.round((teamAttendance.filter(a => a.status === 'In').length / employees.length) * 100) : 0}
+                                onClick={() => setActiveTab('attendance')}
                             />
                         </div>
 
@@ -776,7 +807,7 @@ function ManagerDashboard() {
                             )}
                         </div>
                     </div>
-                ) : (
+                ) : activeTab === 'books' ? (
                     /* HR Books Tab Content */
                     <div className="mg-books-section animate-fade-in">
                         <div className="mg-widget-panel" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
@@ -818,6 +849,66 @@ function ManagerDashboard() {
                             </div>
                         </div>
                     </div>
+                ) : activeTab === 'attendance' ? (
+                    <div className="mg-attendance-section animate-fade-in">
+                        <div className="mg-widget-panel" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
+                            <div className="mg-widget-title-area" style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                    <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Team Presence Tracker</h3>
+                                </div>
+                                <div className="mg-attendance-stats">
+                                    <span className="mg-stat-pill in">Present: {teamAttendance.filter(a => a.status === 'In').length}</span>
+                                    <span className="mg-stat-pill out">Away: {employees.length - teamAttendance.filter(a => a.status === 'In').length}</span>
+                                </div>
+                            </div>
+
+                            <div className="mg-attendance-table-wrap">
+                                <table className="mg-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Team Member</th>
+                                            <th>Emp ID</th>
+                                            <th>Shift Start</th>
+                                            <th>Status</th>
+                                            <th>Location</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {employees.map(emp => {
+                                            const att = teamAttendance.find(a => a.empId === (emp.EmpID || emp.employee_code));
+                                            return (
+                                                <tr key={emp.EmpID || emp.employee_code}>
+                                                    <td>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <div className="mg-mini-avatar" style={{ background: att?.status === 'In' ? '#ecfdf5' : '#f8fafc', color: att?.status === 'In' ? '#10b981' : '#64748b' }}>
+                                                                {emp.Name?.charAt(0)}
+                                                            </div>
+                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                <span style={{ fontWeight: '700', fontSize: '14px' }}>{emp.Name}</span>
+                                                                <span style={{ fontSize: '11px', color: '#64748b' }}>{emp.Designation}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ fontSize: '13px', fontWeight: '600' }}>{emp.EmpID || emp.employee_code}</td>
+                                                    <td style={{ fontSize: '13px' }}>{att?.inTime || "-"}</td>
+                                                    <td>
+                                                        <span className={`mg-status-badge ${att?.status === 'In' ? 'active' : 'inactive'}`}>
+                                                            {att?.status === 'In' ? 'PRESENT' : 'AWAY'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ fontSize: '12px', color: '#64748b' }}>{att?.location || "N/A"}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* Default/Empty State */
+                    <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Select a tab to view content</div>
                 )}
             </div>
 
@@ -1303,6 +1394,7 @@ function PolicyModal({ doc, onClose }) {
         }
         loadDoc();
         return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [doc.fileId, doc.fileName, doc.title]);
 
     const isPdf = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.title?.toLowerCase().includes('pdf');

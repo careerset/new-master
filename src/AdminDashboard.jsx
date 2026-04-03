@@ -246,6 +246,10 @@ function AdminDashboard() {
     const [detailTab, setDetailTab] = useState("personal");
     const [viewingDoc, setViewingDoc] = useState(null);
     const [policies, setPolicies] = useState([]);
+    const [globalAttendance, setGlobalAttendance] = useState([]);
+    const [attStartDate, setAttStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [attEndDate, setAttEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [attFilterDept, setAttFilterDept] = useState("All");
     const navigate = useNavigate();
 
     const normalizeDept = (dept) => {
@@ -283,14 +287,29 @@ function AdminDashboard() {
                 { label: "Travel Policy", viewUrl: "/Hrpolicy/Travel Policy_Final.docx", downloadUrl: "/Hrpolicy/Travel Policy_Final.docx", description: "Guidelines for official travel, expenses, and trip reimbursements" }
             ]);
         }
+    };    const loadGlobalAttendance = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${SCRIPT_URL}?action=getGlobalAttendance`);
+            const data = await res.json();
+            if (data.status === "success") {
+                setGlobalAttendance(data.attendance || []);
+            }
+        } catch (err) {
+            console.error("Error loading global attendance:", err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         loadEmployees();
         loadPolicies();
+        loadGlobalAttendance();
         const intv = setInterval(() => {
             loadEmployees();
             loadPolicies();
+            loadGlobalAttendance();
         }, 15000);
         return () => clearInterval(intv);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -367,6 +386,41 @@ function AdminDashboard() {
         }
     };
 
+    const exportAttendanceCSV = () => {
+        const filtered = globalAttendance.filter(a => {
+            const matchesDate = a.date >= attStartDate && a.date <= attEndDate;
+            const emp = employees.find(e => (e.EmpID || e.employee_code) === a.empId);
+            const matchesDept = attFilterDept === "All" || (emp && normalizeDept(emp.Department) === attFilterDept);
+            return matchesDate && matchesDept;
+        });
+
+        if (filtered.length === 0) return alert("No data to export for selected filters");
+
+        const headers = ["Date", "Employee ID", "Name", "Department", "In Time", "Out Time", "Status", "Location"];
+        const rows = filtered.map(a => {
+            const emp = employees.find(e => (e.EmpID || e.employee_code) === a.empId);
+            return [
+                a.date,
+                a.empId,
+                emp?.Name || "N/A",
+                emp ? normalizeDept(emp.Department) : "N/A",
+                a.inTime || "-",
+                a.outTime || "-",
+                a.status,
+                a.location || "-"
+            ];
+        });
+
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", `attendance_report_${attStartDate}_to_${attEndDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="ad-portal-container">
             <div className="ad-side-panel">
@@ -390,6 +444,10 @@ function AdminDashboard() {
                     <div className={`ad-nav-link ${activeTab === 'hrbook' ? 'active' : ''}`} onClick={() => setActiveTab('hrbook')}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                         <span>HR Book</span>
+                    </div>
+                    <div className={`ad-nav-link ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
+                        <span>Global Attendance</span>
                     </div>
                 </div>
                 <div className="ad-nav-link ad-logout-btn" onClick={() => navigate("/admin-login")}>
@@ -415,6 +473,12 @@ function AdminDashboard() {
                             <StatCard label="Total Workforce" value={stats.total} color="#6366f1" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>} />
                             <StatCard label="Active Records" value={stats.active} color="#10b981" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>} />
                             <StatCard label="Critical Audit" value={stats.critical} color="#ef4444" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line></svg>} />
+                            <StatCard 
+                                label="Today Present" 
+                                value={`${globalAttendance.filter(a => a.status === 'In' && a.date === new Date().toISOString().split('T')[0]).length} / ${stats.total}`} 
+                                color="#8b5cf6" 
+                                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>} 
+                            />
                         </div>
                         <div className="ad-widget-row">
                             <div className="ad-widget-panel">
@@ -476,6 +540,86 @@ function AdminDashboard() {
                     </div>
                 ) : activeTab === 'access' ? (
                     <AdminUsersContent />
+                ) : activeTab === 'attendance' ? (
+                    <div className="ad-attendance-panel animate-fade-in">
+                        <div className="ad-filter-shelf" style={{ marginBottom: '25px', display: 'flex', gap: '20px', alignItems: 'flex-end' }}>
+                            <div className="ad-filter-unit" style={{ flex: 1 }}>
+                                <label>Start Date</label>
+                                <input type="date" value={attStartDate} onChange={(e) => setAttStartDate(e.target.value)} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', width: '100%' }} />
+                            </div>
+                            <div className="ad-filter-unit" style={{ flex: 1 }}>
+                                <label>End Date</label>
+                                <input type="date" value={attEndDate} onChange={(e) => setAttEndDate(e.target.value)} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', width: '100%' }} />
+                            </div>
+                            <div className="ad-filter-unit" style={{ flex: 1 }}>
+                                <label>Department</label>
+                                <select value={attFilterDept} onChange={(e) => setAttFilterDept(e.target.value)} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', width: '100%' }}>
+                                    {depts.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </div>
+                            <div className="ad-header-actions" style={{ marginBottom: '5px' }}>
+                                <button className="ad-primary-action-btn" onClick={exportAttendanceCSV} style={{ background: '#059669' }}>Export Report</button>
+                                <button className="ad-primary-action-btn" onClick={loadGlobalAttendance}>Refresh Logs</button>
+                            </div>
+                        </div>
+
+                        <div className="ad-widget-panel" style={{ padding: '0', borderRadius: '16px', overflow: 'hidden', background: 'white' }}>
+                            <div style={{ padding: '20px 25px', borderBottom: '1px solid #f1f5f9' }}>
+                                <h4 style={{ margin: 0, color: '#1e293b', fontSize: '16px', fontWeight: '800' }}>Global Attendance Registry</h4>
+                            </div>
+                            <div className="ad-table-wrapper" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                <table className="mg-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{ background: '#f8fafc' }}>Date</th>
+                                            <th style={{ background: '#f8fafc' }}>Employee</th>
+                                            <th style={{ background: '#f8fafc' }}>In Time</th>
+                                            <th style={{ background: '#f8fafc' }}>Out Time</th>
+                                            <th style={{ background: '#f8fafc' }}>Status</th>
+                                            <th style={{ background: '#f8fafc' }}>Geo Info</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {globalAttendance
+                                            .filter(a => {
+                                                const matchesDate = a.date >= attStartDate && a.date <= attEndDate;
+                                                const emp = employees.find(e => (e.EmpID || e.employee_code) === a.empId);
+                                                const matchesDept = attFilterDept === "All" || (emp && normalizeDept(emp.Department) === attFilterDept);
+                                                return matchesDate && matchesDept;
+                                            })
+                                            .reverse()
+                                            .map((a, i) => {
+                                                const emp = employees.find(e => (e.EmpID || e.employee_code) === a.empId);
+                                                return (
+                                                    <tr key={i}>
+                                                        <td style={{ fontWeight: '700', fontSize: '13px' }}>{formatDate(a.date)}</td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{emp?.Name || "System Record"}</span>
+                                                                <span style={{ fontSize: '11px', color: '#64748b' }}>{a.empId} • {emp ? normalizeDept(emp.Department) : "N/A"}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ color: '#059669', fontWeight: '700' }}>{a.inTime || "-"}</td>
+                                                        <td style={{ color: '#dc2626', fontWeight: '700' }}>{a.outTime || "-"}</td>
+                                                        <td>
+                                                            <span className={`ad-status-tag ${a.status === 'In' ? 'active' : 'inactive'}`} style={{ fontSize: '10px' }}>
+                                                                {a.status === 'In' ? 'PUNCHED IN' : 'PUNCHED OUT'}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ fontSize: '11px', color: '#64748b', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            {a.location || "No GeoData"}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        {globalAttendance.length === 0 && (
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No attendance logs found in database.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     /* HR Book Tab Content */
                     <div className="animate-fade-in">

@@ -2,7 +2,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --primary-blue: #6366f1; /* Modern Indigo */
+    --primary-blue: #6366f1;
+    /* Modern Indigo */
     --admin-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     --manager-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
     --bg-light: #f8fafc;
@@ -596,84 +597,94 @@ body {
     color: var(--text-main);
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 12px;
-    font-size: 13px;/* HR Policy Upload Enhancements */
-.mg-modal-mask {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-}
-
-.mg-modal-core {
-    background: white;
-    border-radius: 24px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    width: 95%;
-    max-width: 500px;
-    overflow: hidden;
-    position: relative;
-}
-
-.mg-modal-top-bar {
-    padding: 24px 30px;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.mg-modal-dismiss {
-    background: #f1f5f9;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 20px;
-    color: #64748b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.mg-modal-dismiss:hover {
-    background: #e2e8f0;
-    color: #0f172a;
-}
-
-.mg-modal-body {
-    padding: 30px;
-}
-
-.form-group label {
-    display: block;
     font-size: 13px;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 8px;
-}
 
-.animate-fade-in {
-    animation: fadeIn 0.4s ease-out;
-}
+    /* HR Policy Upload Enhancements */
+    .mg-modal-mask {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+    .mg-modal-core {
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        width: 95%;
+        max-width: 500px;
+        overflow: hidden;
+        position: relative;
+    }
 
-:root {
-    --manager-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-    --admin-gradient: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-}
+    .mg-modal-top-bar {
+        padding: 24px 30px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .mg-modal-dismiss {
+        background: #f1f5f9;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 20px;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .mg-modal-dismiss:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    .mg-modal-body {
+        padding: 30px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 8px;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    :root {
+        --manager-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        --admin-gradient: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -971,8 +982,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Custom Scrollbar */
@@ -1455,6 +1473,7 @@ body {
         opacity: 0;
         transform: translateY(30px) scale(0.98);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -1540,4 +1559,85 @@ body {
     font-weight: 700;
     color: var(--primary-blue);
     text-transform: uppercase;
+}
+
+.btn-delete-policy {
+    transition: all 0.2s ease;
+}
+
+.btn-delete-policy:hover {
+    background: #ef4444 !important;
+    color: white !important;
+    border-color: #ef4444 !important;
+    transform: translateY(-2px);
+}
+
+.btn-delete-policy:active {
+    transform: scale(0.95);
+}
+
+/* ATTENDANCE CENTER STYLES */
+.attendance-central-panel {
+    animation: fadeIn 0.4s ease-out;
+}
+
+.filter-shelf {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    transition: all 0.3s ease;
+}
+
+.filter-shelf:hover {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+}
+
+.hr-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.hr-data-table th {
+    text-align: left;
+    padding: 18px 25px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.hr-data-table td {
+    padding: 18px 25px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.hr-data-table tr:hover {
+    background: #fcfdfe;
+}
+
+.status-pill.missing {
+    background: #fff1f2;
+    color: #ef4444;
+}
+
+.status-pill.active {
+    background: #ecfdf5 !important;
+    color: #10b981 !important;
+}
+
+.status-pill.inactive {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
 }
