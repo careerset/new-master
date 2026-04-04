@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { renderAsync } from "docx-preview";
 import JSZip from "jszip";
-import * as faceapi from "@vladmandic/face-api/dist/face-api.js";
+import * as faceapi from "@vladmandic/face-api";
 import "./employeeDashboard.css";
 import ShiftMapModal from "./ShiftMapModal";
 
@@ -340,7 +340,9 @@ function EmployeeDashboard() {
     <div className={`emp-dashboard-container ${isSidebarOpen ? 'sidebar-mobile-active' : ''}`}>
       {/* Mobile Header */}
       <div className="mobile-dash-header">
-        <img src="/chn-logo.png" alt="Logo" className="mobile-logo" />
+        <div className="mobile-logo-container">
+          <img src="/chn-logo.png" alt="Logo" className="mobile-logo" />
+        </div>
         <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
           {isSidebarOpen ? (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -868,23 +870,25 @@ function EmployeeDashboard() {
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '20px' }}>
-                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', width: '100%', justifyContent: 'center' }}>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9', flex: '1', minWidth: '120px', textAlign: 'center' }}>
                                 <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#10b981', textTransform: 'uppercase', marginBottom: '4px' }}>On Time</span>
                                 <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.present}</span>
                             </div>
-                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9', flex: '1', minWidth: '120px', textAlign: 'center' }}>
                                 <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase', marginBottom: '4px' }}>Late In</span>
                                 <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.late}</span>
                             </div>
-                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9', flex: '1', minWidth: '120px', textAlign: 'center' }}>
                                 <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#ef4444', textTransform: 'uppercase', marginBottom: '4px' }}>Missed</span>
                                 <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.absent}</span>
                             </div>
                             <button onClick={fetchAttendanceHistory} style={{ 
                                 background: '#0f172a', color: 'white', border: 'none', padding: '15px 25px', borderRadius: '20px', 
-                                fontWeight: '800', cursor: 'pointer', transition: 'transform 0.2s', alignSelf: 'center'
+                                fontWeight: '800', cursor: 'pointer', transition: 'transform 0.2s', alignSelf: 'center',
+                                width: '100%', maxWidth: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'
                             }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                                {isAttendanceLoading && <div className="mg-sync-pulse" style={{ background: 'white', width: '8px', height: '8px' }}></div>}
                                 {isAttendanceLoading ? "Syncing..." : "Sync Records"}
                             </button>
                         </div>
@@ -1117,12 +1121,39 @@ function EmployeeDashboard() {
         />
       )}
 
-      <ShiftMapModal 
-        isOpen={isTrailModalOpen} 
-        onClose={() => setIsTrailModalOpen(false)} 
-        selectedTrail={selectedTrail} 
-        employees={[employeeData]} 
-      />
+      {/* Final Modal Overlays */}
+      {isTrailModalOpen && (
+        <ShiftMapModal 
+          isOpen={isTrailModalOpen} 
+          onClose={() => setIsTrailModalOpen(false)} 
+          selectedTrail={selectedTrail} 
+          employees={[employeeData]} 
+        />
+      )}
+
+      {/* Premium Bottom Navigation - Mobile Only */}
+      <div className="premium-bottom-nav mobile-only">
+        <div className={`bottom-nav-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Overview</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Profile</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span>Punch</span>
+        </div>
+        <div className={`bottom-nav-item ${activeTab === 'books' ? 'active' : ''}`} onClick={() => setActiveTab('books')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <span>HR Book</span>
+        </div>
+        <div className="bottom-nav-item" onClick={() => setIsSidebarOpen(true)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          <span>More</span>
+        </div>
+      </div>
     </div>
   );
 }

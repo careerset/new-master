@@ -286,6 +286,7 @@ function AdminDashboard() {
     const [attEndDate, setAttEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [attFilterDept, setAttFilterDept] = useState("All");
     const [attFilterStatus, setAttFilterStatus] = useState("All");
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [selectedTrail, setSelectedTrail] = useState(null);
     const [isTrailModalOpen, setIsTrailModalOpen] = useState(false);
 
@@ -489,11 +490,28 @@ function AdminDashboard() {
     };
 
     return (
-        <div className="ad-portal-container">
-            <div className="ad-side-panel">
+        <div className={`ad-portal-container ${isSidebarOpen ? 'ad-sidebar-active' : ''}`}>
+            {/* Mobile Header - Admin */}
+            <div className="mobile-dash-header">
+                <div className="mobile-logo-container">
+                    <img src="/chn-logo.png" alt="Logo" className="mobile-logo" />
+                </div>
+                <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                    {isSidebarOpen ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    )}
+                </button>
+            </div>
+
+            {/* Sidebar Overlay */}
+            {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
+            {/* Sidebar Navigation */}
+            <div className={`ad-side-panel ${isSidebarOpen ? 'active' : ''}`}>
                 <div className="ad-brand-section">
                     <img src="/chn-logo.png" alt="Logo" />
-                    {/* <h2>Admin Portal</h2> */}
                 </div>
                 <div className="ad-nav-group">
                     <div className={`ad-nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
@@ -512,7 +530,7 @@ function AdminDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                         <span>HR Book</span>
                     </div>
-                    <div className={`ad-nav-link ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                    <div className={`ad-nav-link ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
                         <span>Global Attendance</span>
                     </div>
@@ -783,6 +801,41 @@ function AdminDashboard() {
                 )}
             </div>
 
+            {/* Mobile Header */}
+            <div className="ad-mobile-header mobile-only">
+                <button className="ad-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <span className="ad-header-title">Admin Portal</span>
+            </div>
+
+            {/* Sidebar Overlay */}
+            {isSidebarOpen && <div className="ad-sidebar-overlay mobile-only" onClick={() => setIsSidebarOpen(false)}></div>}
+
+            {/* Premium Bottom Navigation - Mobile Only */}
+            <div className="premium-bottom-nav mobile-only">
+                <div className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Home</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => setActiveTab('employees')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                    <span>Records</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="11" r="3"></circle><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <span>Attendance</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'access' ? 'active' : ''}`} onClick={() => setActiveTab('access')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <span>Access</span>
+                </div>
+                <div className="bottom-nav-item" onClick={() => setIsSidebarOpen(true)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    <span>More</span>
+                </div>
+            </div>
+
             {/* Location Trail Modal */}
             <ShiftMapModal 
                 isOpen={isTrailModalOpen} 
@@ -797,7 +850,6 @@ function AdminDashboard() {
                     onClose={() => setViewingDoc(null)}
                 />
             )}
-            {/* Employee Details Modal */}
             {/* Employee Details Modal */}
             {selectedEmployee && (
                 <div className="mg-modal-mask" onClick={() => setSelectedEmployee(null)}>

@@ -496,3 +496,78 @@ body, select, input, button, textarea {
     color: #64748b;
     border: 1px solid rgba(100, 116, 139, 0.1);
 }
+
+/* --- MOBILE RESPONSIVENESS AND DRAWERS --- */
+@media (max-width: 1024px) {
+    .ad-main-view {
+        padding: 25px;
+    }
+    
+    .ad-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .ad-portal-container {
+        flex-direction: column;
+    }
+
+    .ad-main-view {
+        margin-left: 0 !important;
+        padding-top: 80px;
+        padding-bottom: 100px; /* Space for Bottom Nav */
+    }
+
+    .ad-side-panel {
+        transform: translateX(-102%);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 2200 !important;
+        background: white !important;
+        box-shadow: 20px 0 50px rgba(0,0,0,0.15);
+    }
+
+    .ad-side-panel.active {
+        transform: translateX(0);
+    }
+
+    .ad-page-header {
+        display: none !important; /* Mobile header used instead */
+    }
+
+    .ad-stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .ad-widget-row {
+        grid-template-columns: 1fr !important;
+    }
+
+    .ad-filter-shelf {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ad-filter-unit {
+        width: 100% !important;
+    }
+
+    .ad-modal-core {
+        max-height: 100vh;
+        border-radius: 0 !important;
+    }
+
+    .ad-modal-top-bar {
+        padding: 20px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .ad-stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .ad-header-actions {
+        width: 100% !important;
+    }
+}

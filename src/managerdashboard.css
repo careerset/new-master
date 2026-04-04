@@ -1393,6 +1393,54 @@ body, select, input, button, textarea {
     overflow-x: auto;
 }
 
-.mg-attendance-table-wrap .mg-data-table td {
-    padding: 16px;
+/* --- Mobile Breakpoints --- */
+@media (max-width: 768px) {
+    .mg-portal-container {
+        flex-direction: column;
+    }
+
+    .mobile-dash-header {
+        display: flex;
+        width: 100%;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: white;
+        padding: 15px 20px;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .mg-side-panel {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 2001;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        border-radius: 0 24px 24px 0;
+        box-shadow: 20px 0 50px rgba(0,0,0,0.1);
+    }
+
+    .mg-side-panel.active {
+        transform: translateX(0);
+    }
+
+    .mg-main-content {
+        margin-left: 0;
+        padding: 20px;
+        padding-bottom: 100px;
+    }
+
+    .mg-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mg-widget-row {
+        flex-direction: column;
+    }
 }
+

@@ -182,6 +182,7 @@ function ManagerDashboard() {
     const [sortBy, setSortBy] = useState("name");
     const [uniqueDepts, setUniqueDepts] = useState([]);
     const [celebMonth, setCelebMonth] = useState(new Date().getMonth() + 1);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [teamAttendance, setTeamAttendance] = useState([]);
     const [attFilterStatus, setAttFilterStatus] = useState("All");
     const navigate = useNavigate();
@@ -446,12 +447,28 @@ function ManagerDashboard() {
     };
 
     return (
-        <div className="mg-portal-container">
+        <div className={`mg-portal-container ${isSidebarOpen ? 'mg-sidebar-active' : ''}`}>
+            {/* Mobile Header - Manager */}
+            <div className="mobile-dash-header">
+                <div className="mobile-logo-container">
+                    <img src="/chn-logo.png" alt="Logo" className="mobile-logo" />
+                </div>
+                <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                    {isSidebarOpen ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    )}
+                </button>
+            </div>
+
+            {/* Sidebar Overlay */}
+            {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
             {/* Sidebar Navigation */}
-            <div className="mg-side-panel">
+            <div className={`mg-side-panel ${isSidebarOpen ? 'active' : ''}`}>
                 <div className="mg-brand-section">
                     <img src="/chn-logo.png" alt="Company Logo" />
-
                 </div>
                 <div className="mg-nav-group">
                     <div className={`mg-nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
@@ -466,7 +483,7 @@ function ManagerDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                         <span>HR Books</span>
                     </div>
-                    <div className={`mg-nav-link ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                    <div className={`mg-nav-link ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
                         <span>Attendance</span>
                     </div>
@@ -1029,6 +1046,39 @@ function ManagerDashboard() {
                     /* Default/Empty State */
                     <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Select a tab to view content</div>
                 )}
+            </div>
+
+            {/* Premium Bottom Navigation - Mobile Only */}
+            <div className="premium-bottom-nav mobile-only">
+                <div className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Insights</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => setActiveTab('employees')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                    <span>Team</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="11" r="3"></circle><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <span>Attendance</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'books' ? 'active' : ''}`} onClick={() => setActiveTab('books')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>HR Book</span>
+                </div>
+                <div className="bottom-nav-item" onClick={() => setIsSidebarOpen(true)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    <span>More</span>
+                </div>
+            </div>
+
+            {/* Sidebar Overlay */}
+            {isSidebarOpen && <div className="mg-sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
+            {/* Mobile Header */}
+            <div className="mg-mobile-header mobile-only">
+                <button onClick={() => setIsSidebarOpen(true)}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+                <span className="mg-brand">HR Portal</span>
             </div>
 
             {/* Location Trail Modal */}

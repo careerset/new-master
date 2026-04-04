@@ -237,6 +237,7 @@ function HrDashboard() {
     const [viewingDoc, setViewingDoc] = useState(null);
     const [policies, setPolicies] = useState([]);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [globalAttendance, setGlobalAttendance] = useState([]);
     const [attFilterDate, setAttFilterDate] = useState(new Date().toISOString().split('T')[0]);
     const [attFilterDept, setAttFilterDept] = useState("All");
@@ -505,12 +506,28 @@ function HrDashboard() {
     };
 
     return (
-        <div className="hr-page-wrapper">
+        <div className={`hr-page-wrapper ${isSidebarOpen ? 'hr-sidebar-active' : ''}`}>
+            {/* Mobile Header - HR */}
+            <div className="mobile-dash-header">
+                <div className="mobile-logo-container">
+                    <img src="/chn-logo.png" alt="Logo" className="mobile-logo" />
+                </div>
+                <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                    {isSidebarOpen ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    )}
+                </button>
+            </div>
+
+            {/* Sidebar Overlay */}
+            {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
             {/* Sidebar Navigation */}
-            <div className="hr-sidebar">
+            <div className={`hr-sidebar ${isSidebarOpen ? 'active' : ''}`}>
                 <div className="hr-sidebar-logo">
                     <img src="/chn-logo.png" alt="Company Logo" />
-
                 </div>
                 <div className="hr-nav">
                     <div className={`hr-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
@@ -525,7 +542,7 @@ function HrDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                         <span>HR Book</span>
                     </div>
-                    <div className={`hr-nav-item ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+                    <div className={`hr-nav-item ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
                         <span>Attendance</span>
                     </div>

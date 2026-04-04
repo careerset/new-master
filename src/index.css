@@ -61,3 +61,155 @@ code {
 .animate-fade-in {
     animation: fade-in 0.5s ease forwards;
 }
+
+/* --- Mobile Utility Framework --- */
+.mobile-only {
+    display: none !important;
+}
+
+.desktop-only {
+    display: block !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: flex !important;
+    }
+    .desktop-only {
+        display: none !important;
+    }
+    .hide-on-mobile {
+        display: none !important;
+    }
+}
+
+/* --- Premium Bottom Navigation --- */
+.premium-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.03);
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #64748b;
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 700;
+    flex: 1;
+    transition: all 0.3s ease;
+}
+
+.bottom-nav-item.active {
+    color: #6366f1;
+}
+
+.bottom-nav-item svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.2s ease;
+}
+
+.bottom-nav-item:active svg {
+    transform: scale(0.9);
+}
+
+/* --- Mobile Sidebar Overlay --- */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 998;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* --- Premium Mobile Header --- */
+.mobile-dash-header {
+    display: none !important; /* Managed by .mobile-only or media query */
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 1000;
+    padding: 0 20px;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    .mobile-dash-header {
+        display: flex !important;
+    }
+}
+
+.mobile-logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mobile-logo {
+    height: 36px; /* Increased from 30px */
+    width: auto;
+    object-fit: contain;
+}
+
+.mobile-menu-toggle {
+    background: white;
+    border: 1px solid #f1f5f9;
+    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4f46e5;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transition: all 0.2s ease;
+}
+
+/* --- Responsive Table Fix --- */
+.responsive-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    scrollbar-width: thin;
+}
+
+.responsive-table-container::-webkit-scrollbar {
+    height: 4px;
+}
+
+.responsive-table-container::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
