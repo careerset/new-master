@@ -5,6 +5,8 @@ import PrintProfile from "./PrintProfile";
 import "./print.css";
 import { renderAsync } from "docx-preview";
 import JSZip from "jszip";
+import ShiftMapModal from "./ShiftMapModal";
+
 
 // Required for docx-preview to work correctly
 window.JSZip = JSZip;
@@ -144,6 +146,28 @@ function AdminActionsContent({ employee, onUpdate }) {
 function ManagerDashboard() {
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [selectedTrail, setSelectedTrail] = useState(null);
+    const [isTrailModalOpen, setIsTrailModalOpen] = useState(false);
+
+    const loadEmployeeTrail = async (empId, date) => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${SCRIPT_URL}?action=getEmployeeTrail&empId=${empId}&date=${date}`);
+            const data = await res.json();
+            if (data.status === "success" && data.trail && data.trail.length > 0) {
+                setSelectedTrail({ empId, date, points: data.trail });
+                setIsTrailModalOpen(true);
+            } else {
+                alert("No movement history found for this shift.");
+            }
+        } catch (err) {
+            console.error("Error loading trail:", err);
+            alert("Failed to load movement history.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const [loading, setLoading] = useState(false);
     const [searchId, setSearchId] = useState("");
     const [activeTab, setActiveTab] = useState("dashboard");
@@ -976,7 +1000,23 @@ function ManagerDashboard() {
                                                             {att?.status === 'In' ? 'PRESENT' : 'AWAY'}
                                                         </span>
                                                     </td>
-                                                    <td style={{ fontSize: '12px', color: '#64748b' }}>{att?.location || "N/A"}</td>
+                                                    <td style={{ fontSize: '12px', color: '#64748b', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{att?.location || "No GeoData"}</span>
+                                                             {att && (
+                                                                 <button 
+                                                                     onClick={() => loadEmployeeTrail(emp.EmpID || emp.employee_code, new Date().toISOString().split('T')[0])}
+                                                                     style={{ 
+                                                                         background: '#f1f5f9', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer',
+                                                                         color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                                     }}
+                                                                     title="Track Movement"
+                                                                 >
+                                                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                                                 </button>
+                                                             )}
+                                                         </div>
+                                                     </td>
                                                 </tr>
                                             );
                                         })}
@@ -990,6 +1030,14 @@ function ManagerDashboard() {
                     <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Select a tab to view content</div>
                 )}
             </div>
+
+            {/* Location Trail Modal */}
+            <ShiftMapModal 
+                isOpen={isTrailModalOpen} 
+                onClose={() => setIsTrailModalOpen(false)} 
+                selectedTrail={selectedTrail} 
+                employees={employees} 
+            />
 
             {/* Document Viewer Modal */}
             {viewingDoc && (

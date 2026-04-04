@@ -2,8 +2,9 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { renderAsync } from "docx-preview";
 import JSZip from "jszip";
-import * as faceapi from "@vladmandic/face-api";
+import * as faceapi from "@vladmandic/face-api/dist/face-api.js";
 import "./employeeDashboard.css";
+import ShiftMapModal from "./ShiftMapModal";
 
 function LegendNode({ color, label, solid }) {
     return (
@@ -96,6 +97,8 @@ function EmployeeDashboard() {
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
+  const [isTrailModalOpen, setIsTrailModalOpen] = useState(false);
+  const [selectedTrail, setSelectedTrail] = useState(null);
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -160,11 +163,24 @@ function EmployeeDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, API_URL]);
 
-  useEffect(() => {
-    if (activeTab === 'attendance' && attendanceHistory.length === 0) {
-        fetchAttendanceHistory();
+  const loadEmployeeTrail = async (date) => {
+    const employeeId = localStorage.getItem("employeeId");
+    if (!employeeId || !API_URL) return;
+
+    try {
+      const res = await fetch(`${API_URL}?action=getEmployeeTrail&empId=${employeeId}&date=${date}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.trail && data.trail.length > 0) {
+        setSelectedTrail({ points: data.trail, empId: employeeId, date });
+        setIsTrailModalOpen(true);
+      } else {
+        alert("No movement history found for this shift.");
+      }
+    } catch (err) {
+      console.error("Error loading trail:", err);
+      alert("Failed to load movement history.");
     }
-  }, [activeTab]);
+  };
 
   const fetchAttendanceHistory = useCallback(async () => {
     const employeeId = localStorage.getItem("employeeId");
@@ -192,6 +208,12 @@ function EmployeeDashboard() {
       setIsAttendanceLoading(false);
     }
   }, [API_URL]);
+
+  useEffect(() => {
+    if (activeTab === 'attendance' && attendanceHistory.length === 0) {
+        fetchAttendanceHistory();
+    }
+  }, [activeTab, attendanceHistory.length, fetchAttendanceHistory]);
 
   const proceedWithPunch = useCallback(async () => {
     const employeeId = localStorage.getItem("employeeId");
@@ -255,6 +277,45 @@ function EmployeeDashboard() {
     localStorage.removeItem("employeeId");
     navigate("/");
   };
+
+  const syncShiftLocation = useCallback(async () => {
+    const empId = localStorage.getItem("employeeId");
+    if (!empId || !API_URL || attendanceStatus !== "Punched In") return;
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const formData = new URLSearchParams();
+          formData.append("action", "syncLocation");
+          formData.append("empId", empId);
+          formData.append("location", `${pos.coords.latitude},${pos.coords.longitude}`);
+          
+          await fetch(API_URL, {
+            method: "POST",
+            body: formData,
+          });
+          console.log("Location sync successful");
+        } catch (err) {
+          console.error("Location sync error:", err);
+        }
+      }, (error) => {
+          console.warn("Geolocation permission denied or error:", error);
+      }, { enableHighAccuracy: true });
+    }
+  }, [API_URL, attendanceStatus]);
+
+  useEffect(() => {
+    let intervalId = null;
+    if (attendanceStatus === "Punched In") {
+      // Sync immediately on punch in
+      syncShiftLocation();
+      // Sync every 10 minutes (600,000 ms)
+      intervalId = setInterval(syncShiftLocation, 600000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [attendanceStatus, syncShiftLocation]);
 
   if (!employeeData) {
     return (
@@ -930,6 +991,69 @@ function EmployeeDashboard() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Recent Activity Table */}
+                    <div className="glass-panel animate-fade-in" style={{ 
+                        background: 'white', borderRadius: '32px', padding: '30px', marginTop: '30px',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '900' }}>Recent Attendance Logs</h3>
+                            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Last {attendanceHistory.slice(0, 10).length} records</span>
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="glass-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                        <th style={{ padding: '12px 20px' }}>Date</th>
+                                        <th>Shift In</th>
+                                        <th>Shift Out</th>
+                                        <th>Status</th>
+                                        <th style={{ textAlign: 'right', paddingRight: '20px' }}>Location Trace</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {attendanceHistory.slice(0, 10).map((record, idx) => (
+                                        <tr key={idx} style={{ background: '#f8fafc', borderRadius: '15px' }}>
+                                            <td style={{ padding: '15px 20px', fontWeight: '700', borderRadius: '15px 0 0 15px', color: '#1e293b' }}>{formatDate(record.date)}</td>
+                                            <td style={{ fontWeight: '600', color: isLate(record.inTime) ? '#f59e0b' : '#059669' }}>{formatTime(record.inTime)}</td>
+                                            <td style={{ fontWeight: '600', color: '#64748b' }}>{formatTime(record.outTime)}</td>
+                                            <td>
+                                                <span style={{ 
+                                                    padding: '5px 12px', borderRadius: '10px', fontSize: '10px', fontWeight: '800',
+                                                    background: record.status?.toLowerCase() === 'in' ? '#ecfdf5' : '#f1f5f9',
+                                                    color: record.status?.toLowerCase() === 'in' ? '#059669' : '#64748b'
+                                                }}>
+                                                    {record.status?.toUpperCase() === 'IN' ? 'ACTIVE SHIFT' : 'SHIFT ENDED'}
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'right', paddingRight: '20px', borderRadius: '0 15px 15px 0' }}>
+                                                {(record.inTime || record.location) && (
+                                                    <button 
+                                                        onClick={() => loadEmployeeTrail(record.date)}
+                                                        style={{ 
+                                                            background: '#4f46e5', color: 'white', border: 'none', 
+                                                            padding: '8px 15px', borderRadius: '10px', fontSize: '11px', 
+                                                            fontWeight: '800', cursor: 'pointer', display: 'inline-flex', 
+                                                            alignItems: 'center', gap: '6px' 
+                                                        }}
+                                                    >
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                                        Track Movement
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {attendanceHistory.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '14px' }}>No attendance activity logged yet.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             );
         })()}
@@ -992,6 +1116,13 @@ function EmployeeDashboard() {
           scriptUrl={SCRIPT_URL}
         />
       )}
+
+      <ShiftMapModal 
+        isOpen={isTrailModalOpen} 
+        onClose={() => setIsTrailModalOpen(false)} 
+        selectedTrail={selectedTrail} 
+        employees={[employeeData]} 
+      />
     </div>
   );
 }

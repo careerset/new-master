@@ -4,6 +4,8 @@ import "./print.css";
 import "./hr.css";
 import { renderAsync } from "docx-preview";
 import JSZip from "jszip";
+import ShiftMapModal from "./ShiftMapModal";
+
 
 // Required for docx-preview to work correctly
 window.JSZip = JSZip;
@@ -199,6 +201,28 @@ function AdminActionsContent({ employee, onUpdate }) {
 function HrDashboard() {
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [selectedTrail, setSelectedTrail] = useState(null);
+    const [isTrailModalOpen, setIsTrailModalOpen] = useState(false);
+
+    const loadEmployeeTrail = async (empId, date) => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${SCRIPT_URL}?action=getEmployeeTrail&empId=${empId}&date=${date}`);
+            const data = await res.json();
+            if (data.status === "success" && data.trail && data.trail.length > 0) {
+                setSelectedTrail({ empId, date, points: data.trail });
+                setIsTrailModalOpen(true);
+            } else {
+                alert("No movement history found for this shift.");
+            }
+        } catch (err) {
+            console.error("Error loading trail:", err);
+            alert("Failed to load movement history.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const [loading, setLoading] = useState(false);
     const [searchId, setSearchId] = useState("");
     const [activeTab, setActiveTab] = useState("dashboard");
@@ -1141,7 +1165,21 @@ function HrDashboard() {
                                                         </span>
                                                     </td>
                                                     <td style={{ fontSize: '11px', color: '#94a3b8', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {latest?.location || "No GeoData"}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{latest?.location || "No GeoData"}</span>
+                                                            {latest && (
+                                                                <button 
+                                                                    onClick={() => loadEmployeeTrail(emp.EmpID || emp.employee_code, attFilterDate)}
+                                                                    style={{ 
+                                                                        background: '#f1f5f9', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer',
+                                                                        color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                                    }}
+                                                                    title="Track Movement"
+                                                                >
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
@@ -1531,6 +1569,14 @@ function HrDashboard() {
                 </div>
             )}
 
+            {/* Location Trail Modal */}
+            <ShiftMapModal 
+                isOpen={isTrailModalOpen} 
+                onClose={() => setIsTrailModalOpen(false)} 
+                selectedTrail={selectedTrail} 
+                employees={employees} 
+            />
+
             {/* Document Viewer Modal */}
             {viewingDoc && (
                 <PolicyModal
@@ -1552,7 +1598,7 @@ function HrDashboard() {
             )}
 
             {loading && (
-                <div style={{ position: 'fixed', bottom: '30px', right: '30px', background: 'white', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', z: 2000 }}>
+                <div style={{ position: 'fixed', bottom: '30px', right: '30px', background: 'white', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 2000 }}>
                     <div className="loader-dot"></div>
                     <span style={{ fontSize: '14px', fontWeight: '600' }}>Syncing data...</span>
                 </div>
