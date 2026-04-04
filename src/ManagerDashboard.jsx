@@ -34,6 +34,30 @@ const formatTime = (timeString) => {
     } catch { return timeString; }
 };
 
+const isLate = (timeString) => {
+    if (!timeString) return false;
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return false;
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // Shift starts at 9:30 + 10 min grace = 9:40 AM
+        return (hours > 9) || (hours === 9 && minutes > 40);
+    } catch { return false; }
+};
+
+const isEarly = (timeString) => {
+    if (!timeString) return false;
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return false;
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // Shift ends at 06:30 PM (18:30)
+        return (hours < 18) || (hours === 18 && minutes < 30);
+    } catch { return false; }
+};
+
 const getDriveDirectLink = (url) => {
     if (!url) return null;
     if (url.includes("drive.google.com")) {
@@ -135,6 +159,7 @@ function ManagerDashboard() {
     const [uniqueDepts, setUniqueDepts] = useState([]);
     const [celebMonth, setCelebMonth] = useState(new Date().getMonth() + 1);
     const [teamAttendance, setTeamAttendance] = useState([]);
+    const [attFilterStatus, setAttFilterStatus] = useState("All");
     const navigate = useNavigate();
 
     const normalizeDept = (dept) => {
@@ -872,7 +897,15 @@ function ManagerDashboard() {
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                                     <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Team Presence Tracker</h3>
                                 </div>
-                                <div className="mg-attendance-stats">
+                                <div className="mg-attendance-stats" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                    <select value={attFilterStatus} onChange={(e) => setAttFilterStatus(e.target.value)} style={{ padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12px', fontWeight: '700' }}>
+                                        <option value="All">All Status</option>
+                                        <option value="In">Present (In)</option>
+                                        <option value="Out">Left (Out)</option>
+                                        <option value="Late">Late In</option>
+                                        <option value="Early">Early Exit</option>
+                                        <option value="Missing">Away</option>
+                                    </select>
                                     <span className="mg-stat-pill in">Present: {teamAttendance.filter(a => a.status === 'In').length}</span>
                                     <span className="mg-stat-pill out">Away: {employees.length - teamAttendance.filter(a => a.status === 'In').length}</span>
                                 </div>
@@ -885,12 +918,22 @@ function ManagerDashboard() {
                                             <th>Team Member</th>
                                             <th>Emp ID</th>
                                             <th>Shift Start</th>
+                                            <th>Shift End</th>
                                             <th>Status</th>
                                             <th>Location</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {employees.map(emp => {
+                                        {employees.filter(emp => {
+                                            const att = teamAttendance.find(a => a.empId === (emp.EmpID || emp.employee_code));
+                                            if (attFilterStatus === "All") return true;
+                                            if (attFilterStatus === "In") return att?.status === "In";
+                                            if (attFilterStatus === "Out") return att?.status === "Out";
+                                            if (attFilterStatus === "Late") return isLate(att?.inTime);
+                                            if (attFilterStatus === "Early") return isEarly(att?.outTime);
+                                            if (attFilterStatus === "Missing") return !att;
+                                            return true;
+                                        }).map(emp => {
                                             const att = teamAttendance.find(a => a.empId === (emp.EmpID || emp.employee_code));
                                             return (
                                                 <tr key={emp.EmpID || emp.employee_code}>
@@ -906,7 +949,28 @@ function ManagerDashboard() {
                                                         </div>
                                                     </td>
                                                     <td style={{ fontSize: '13px', fontWeight: '600' }}>{emp.EmpID || emp.employee_code}</td>
-                                                    <td style={{ fontSize: '13px' }}>{formatTime(att?.inTime)}</td>
+                                                    <td style={{ fontSize: '13px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {formatTime(att?.inTime)}
+                                                            {isLate(att?.inTime) && (
+                                                                <span style={{ 
+                                                                    fontSize: '9px', background: '#fee2e2', color: '#ef4444', 
+                                                                    padding: '2px 6px', borderRadius: '4px', fontWeight: '900' 
+                                                                }}>LATE</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ fontSize: '13px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {formatTime(att?.outTime)}
+                                                            {isEarly(att?.outTime) && (
+                                                                <span style={{ 
+                                                                    fontSize: '9px', background: '#fff7ed', color: '#f97316', 
+                                                                    padding: '2px 6px', borderRadius: '4px', fontWeight: '900' 
+                                                                }}>EARLY</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td>
                                                         <span className={`mg-status-badge ${att?.status === 'In' ? 'active' : 'inactive'}`}>
                                                             {att?.status === 'In' ? 'PRESENT' : 'AWAY'}

@@ -33,6 +33,30 @@ const formatTime = (timeString) => {
     } catch { return timeString; }
 };
 
+const isLate = (timeString) => {
+    if (!timeString) return false;
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return false;
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // Shift starts at 9:30 + 10 min grace = 9:40 AM
+        return (hours > 9) || (hours === 9 && minutes > 40);
+    } catch { return false; }
+};
+
+const isEarly = (timeString) => {
+    if (!timeString) return false;
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return false;
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // Shift ends at 06:30 PM (18:30)
+        return (hours < 18) || (hours === 18 && minutes < 30);
+    } catch { return false; }
+};
+
 const getDriveDirectLink = (url) => {
     if (!url) return null;
     if (url.includes("drive.google.com")) {
@@ -1026,6 +1050,8 @@ function HrDashboard() {
                                     <option value="All">All Status</option>
                                     <option value="In">Present (In)</option>
                                     <option value="Out">Left (Out)</option>
+                                    <option value="Late">Late Checking</option>
+                                    <option value="Early">Early Exit</option>
                                     <option value="Missing">Not Punched</option>
                                 </select>
                             </div>
@@ -1058,7 +1084,10 @@ function HrDashboard() {
                                             
                                             if (attFilterStatus !== "All") {
                                                 if (attFilterStatus === "Missing" && latest) return null;
-                                                if (attFilterStatus !== "Missing" && (!latest || latest.status !== attFilterStatus)) return null;
+                                                if (attFilterStatus === "In" && (!latest || latest.status !== "In")) return null;
+                                                if (attFilterStatus === "Out" && (!latest || latest.status !== "Out")) return null;
+                                                if (attFilterStatus === "Late" && (!latest || !isLate(latest.inTime))) return null;
+                                                if (attFilterStatus === "Early" && (!latest || !isEarly(latest.outTime))) return null;
                                                 if (attFilterStatus === "Missing" && !latest) { /* keep */ }
                                             }
 
@@ -1079,8 +1108,28 @@ function HrDashboard() {
                                                             <span style={{ fontSize: '11px', color: '#64748b' }}>{emp.EmpID || emp.employee_code}</span>
                                                         </div>
                                                     </td>
-                                                    <td style={{ fontSize: '13px', color: '#059669', fontWeight: '600' }}>{formatTime(latest?.inTime)}</td>
-                                                    <td style={{ fontSize: '13px', color: '#dc2626', fontWeight: '600' }}>{formatTime(latest?.outTime)}</td>
+                                                    <td style={{ fontSize: '13px', color: '#059669', fontWeight: '600' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {formatTime(latest?.inTime)}
+                                                            {isLate(latest?.inTime) && (
+                                                                <span style={{ 
+                                                                    fontSize: '9px', background: '#fee2e2', color: '#ef4444', 
+                                                                    padding: '2px 6px', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.5px' 
+                                                                }}>LATE</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ fontSize: '13px', color: '#dc2626', fontWeight: '600' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {formatTime(latest?.outTime)}
+                                                            {isEarly(latest?.outTime) && (
+                                                                <span style={{ 
+                                                                    fontSize: '9px', background: '#fff7ed', color: '#f97316', 
+                                                                    padding: '2px 6px', borderRadius: '4px', fontWeight: '900', letterSpacing: '0.5px' 
+                                                                }}>EARLY</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td>
                                                         <span className={`status-pill ${latest?.status === 'In' ? 'active' : latest?.status === 'Out' ? 'inactive' : 'missing'}`} style={{ 
                                                             padding: '6px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: '800',

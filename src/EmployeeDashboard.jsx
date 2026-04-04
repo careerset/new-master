@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { renderAsync } from "docx-preview";
 import JSZip from "jszip";
@@ -47,6 +47,18 @@ const formatTime = (timeString) => {
     if (isNaN(date.getTime())) return timeString;
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
   } catch { return timeString; }
+};
+
+const isLate = (timeString) => {
+  if (!timeString) return false;
+  try {
+    const date = new Date(timeString);
+    if (isNaN(date.getTime())) return false;
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    // Shift starts at 9:30 + 10 min grace = 9:40 AM
+    return (hours > 9) || (hours === 9 && minutes > 40);
+  } catch { return false; }
 };
 
 const getDriveDirectLink = (url) => {
@@ -154,7 +166,7 @@ function EmployeeDashboard() {
     }
   }, [activeTab]);
 
-  const fetchAttendanceHistory = async () => {
+  const fetchAttendanceHistory = useCallback(async () => {
     const employeeId = localStorage.getItem("employeeId");
     if (!employeeId || !API_URL) return;
 
@@ -179,21 +191,11 @@ function EmployeeDashboard() {
     } finally {
       setIsAttendanceLoading(false);
     }
-  };
+  }, [API_URL]);
 
-  const handlePunch = async () => {
-    // Check for face verification requirement
-    if (employeeData?.Photo) {
-      setShowFaceVerify(true);
-      return;
-    }
-    // If no photo set, proceed with standard punch
-    proceedWithPunch();
-  };
-
-  const proceedWithPunch = async () => {
+  const proceedWithPunch = useCallback(async () => {
     const employeeId = localStorage.getItem("employeeId");
-    if (!employeeId || !API_URL) return;
+    if (!employeeId || !API_URL || punchLoading) return;
 
     setPunchLoading(true);
     const newStatus = attendanceStatus === "Punched In" ? "Out" : "In";
@@ -225,8 +227,8 @@ function EmployeeDashboard() {
         if (data.status === "success") {
             setAttendanceStatus(newStatus === "In" ? "Punched In" : "Punched Out");
             setTodayPunch(data.punchDetails);
+            setShowFaceVerify(false); // Close first!
             alert(`Punched ${newStatus === "In" ? "In" : "Out"} successfully!`);
-            setShowFaceVerify(false);
         } else {
             alert("Error: " + (data.message || "Failed to mark attendance"));
         }
@@ -236,7 +238,17 @@ function EmployeeDashboard() {
     } finally {
         setPunchLoading(false);
     }
-  };
+  }, [attendanceStatus, API_URL, punchLoading]);
+
+  const handlePunch = useCallback(async () => {
+    // Check for face verification requirement
+    if (employeeData?.Photo) {
+      setShowFaceVerify(true);
+      return;
+    }
+    // If no photo set, proceed with standard punch
+    proceedWithPunch();
+  }, [employeeData, proceedWithPunch]);
 
   const handleLogout = () => {
     localStorage.removeItem("employeeLoggedIn");
@@ -720,7 +732,10 @@ function EmployeeDashboard() {
             const getStatusForDate = (dayNum) => {
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
                 const record = attendanceHistory.find(a => a.date === dateStr);
-                if (record) return "present";
+                if (record) {
+                    if (isLate(record.intime || record.inTime)) return "late";
+                    return "present";
+                }
                 
                 const checkDate = new Date(currentYear, currentMonth, dayNum);
                 const today = new Date();
@@ -735,16 +750,18 @@ function EmployeeDashboard() {
                 return "future";
             };
 
-            const monthStats = { present: 0, absent: 0, weekOff: 0 };
+            const monthStats = { present: 0, absent: 0, weekOff: 0, late: 0 };
             for (let d = 1; d <= totalDays; d++) {
                 const status = getStatusForDate(d);
                 if (status === "present") monthStats.present++;
+                else if (status === "late") monthStats.late++;
                 else if (status === "absent") monthStats.absent++;
                 else if (status === "week-off") monthStats.weekOff++;
             }
 
-            const activeWorkDays = monthStats.present + monthStats.absent;
-            const presencePercentage = activeWorkDays > 0 ? Math.round((monthStats.present / activeWorkDays) * 100) : 0;
+            const totalPresent = monthStats.present + monthStats.late;
+            const activeWorkDays = totalPresent + monthStats.absent;
+            const presencePercentage = activeWorkDays > 0 ? Math.round((totalPresent / activeWorkDays) * 100) : 0;
             const circleCircumference = 2 * Math.PI * 45;
             const dashOffset = circleCircumference - (presencePercentage / 100) * circleCircumference;
 
@@ -791,11 +808,15 @@ function EmployeeDashboard() {
                         </div>
 
                         <div style={{ display: 'flex', gap: '20px' }}>
-                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 25px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
-                                <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#10b981', textTransform: 'uppercase', marginBottom: '4px' }}>Active Days</span>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                                <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#10b981', textTransform: 'uppercase', marginBottom: '4px' }}>On Time</span>
                                 <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.present}</span>
                             </div>
-                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 25px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                                <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#f59e0b', textTransform: 'uppercase', marginBottom: '4px' }}>Late In</span>
+                                <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.late}</span>
+                            </div>
+                            <div className="hub-stat-node" style={{ background: 'white', padding: '15px 20px', borderRadius: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
                                 <span style={{ display: 'block', fontSize: '10px', fontWeight: '900', color: '#ef4444', textTransform: 'uppercase', marginBottom: '4px' }}>Missed</span>
                                 <span style={{ fontSize: '20px', fontWeight: '800' }}>{monthStats.absent}</span>
                             </div>
@@ -846,6 +867,10 @@ function EmployeeDashboard() {
                                         style.background = 'linear-gradient(135deg, #ecfdf5, #d1fae5)';
                                         style.color = '#059669';
                                         style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.1)';
+                                    } else if (status === 'late') {
+                                        style.background = 'linear-gradient(135deg, #fffbeb, #fef3c7)';
+                                        style.color = '#d97706';
+                                        style.boxShadow = '0 4px 15px rgba(245, 158, 11, 0.1)';
                                     } else if (status === 'absent') {
                                         style.background = 'linear-gradient(135deg, #fff1f2, #ffe4e6)';
                                         style.color = '#e11d48';
@@ -895,9 +920,11 @@ function EmployeeDashboard() {
                             <div className="glass-panel" style={{ background: 'white', borderRadius: '32px', padding: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
                                 <h4 style={{ margin: '0 0 20px 0', fontSize: '14px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Legend</h4>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <LegendNode color="#10b981" label="Punched In" />
+                                    <LegendNode color="#10b981" label="On Time" />
+                                    <LegendNode color="#f59e0b" label="Late Arrival" />
+                                    <LegendNode color="#f97316" label="Early Departure" />
                                     <LegendNode color="#ef4444" label="Not Reported" />
-                                    <LegendNode color="#94a3b8" label="Week Off (Sun/2nd Sat)" />
+                                    <LegendNode color="#94a3b8" label="Week Off" />
                                     <LegendNode color="#4f46e5" label="Current Day" solid={true} />
                                 </div>
                             </div>
@@ -975,6 +1002,8 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
     const [matchStatus, setMatchStatus] = useState(null);
     const [loadingModels, setLoadingModels] = useState(true);
 
+    const hasTriggered = useRef(false);
+
     useEffect(() => {
         let stream = null;
         let isMounted = true;
@@ -1048,7 +1077,7 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                 let detectionCount = 0;
                 
                 const checkFace = async () => {
-                    if (!isMounted || !videoRef.current) return;
+                    if (!isMounted || !videoRef.current || hasTriggered.current) return;
                     
                     detectionCount++;
                     if (detectionCount % 5 === 0 && matchStatus !== "verified") {
@@ -1061,7 +1090,8 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                         setStatus("Face detected! Comparing with profile...");
                         const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
                         
-                        if (bestMatch.label !== 'unknown') {
+                        if (bestMatch.label !== 'unknown' && !hasTriggered.current) {
+                            hasTriggered.current = true;
                             setMatchStatus("verified");
                             setStatus("Identity Confirmed!");
                             setTimeout(() => { if (isMounted) onVerified(); }, 1500);
@@ -1093,7 +1123,7 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
             isMounted = false;
             if (stream) stream.getTracks().forEach(t => t.stop());
         };
-    }, [profilePhoto, onVerified, scriptUrl]);
+    }, [profilePhoto, onVerified, scriptUrl, matchStatus]);
 
     return (
         <div className="face-verify-overlay" onClick={onClose}>

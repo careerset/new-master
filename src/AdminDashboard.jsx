@@ -33,6 +33,30 @@ const formatTime = (timeString) => {
     } catch { return timeString; }
 };
 
+const isLate = (timeString) => {
+    if (!timeString) return false;
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return false;
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // Shift starts at 9:30 + 10 min grace = 9:40 AM
+        return (hours > 9) || (hours === 9 && minutes > 40);
+    } catch { return false; }
+};
+
+const isEarly = (timeString) => {
+    if (!timeString) return false;
+    try {
+        const date = new Date(timeString);
+        if (isNaN(date.getTime())) return false;
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // Shift ends at 06:30 PM (18:30)
+        return (hours < 18) || (hours === 18 && minutes < 30);
+    } catch { return false; }
+};
+
 const getDriveDirectLink = (url) => {
     if (!url) return null;
     if (url.includes("drive.google.com")) {
@@ -259,6 +283,7 @@ function AdminDashboard() {
     const [attStartDate, setAttStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [attEndDate, setAttEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [attFilterDept, setAttFilterDept] = useState("All");
+    const [attFilterStatus, setAttFilterStatus] = useState("All");
     const navigate = useNavigate();
 
     const normalizeDept = (dept) => {
@@ -575,6 +600,16 @@ function AdminDashboard() {
                                     {depts.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
                             </div>
+                            <div className="ad-filter-unit" style={{ flex: 1 }}>
+                                <label>Status</label>
+                                <select value={attFilterStatus} onChange={(e) => setAttFilterStatus(e.target.value)} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', width: '100%' }}>
+                                    <option value="All">All Status</option>
+                                    <option value="In">Punched In</option>
+                                    <option value="Out">Punched Out</option>
+                                    <option value="Late">Late Arrival</option>
+                                    <option value="Early">Early Exit</option>
+                                </select>
+                            </div>
                             <div className="ad-header-actions" style={{ marginBottom: '5px' }}>
                                 <button className="ad-primary-action-btn" onClick={exportAttendanceCSV} style={{ background: '#059669' }}>Export Report</button>
                                 <button className="ad-primary-action-btn" onClick={loadGlobalAttendance}>Refresh Logs</button>
@@ -603,6 +638,13 @@ function AdminDashboard() {
                                                 const matchesDate = a.date >= attStartDate && a.date <= attEndDate;
                                                 const emp = employees.find(e => (e.EmpID || e.employee_code) === a.empId);
                                                 const matchesDept = attFilterDept === "All" || (emp && normalizeDept(emp.Department) === attFilterDept);
+                                                if (attFilterStatus !== "All") {
+                                                    if (attFilterStatus === "In" && a.status !== "In") return false;
+                                                    if (attFilterStatus === "Out" && a.status !== "Out") return false;
+                                                    if (attFilterStatus === "Late" && !isLate(a.inTime)) return false;
+                                                    if (attFilterStatus === "Early" && !isEarly(a.outTime)) return false;
+                                                }
+                                                
                                                 return matchesDate && matchesDept;
                                             })
                                             .reverse()
@@ -617,8 +659,28 @@ function AdminDashboard() {
                                                                 <span style={{ fontSize: '11px', color: '#64748b' }}>{a.empId} • {emp ? normalizeDept(emp.Department) : "N/A"}</span>
                                                             </div>
                                                         </td>
-                                                        <td style={{ color: '#059669', fontWeight: '700' }}>{formatTime(a.inTime)}</td>
-                                                        <td style={{ color: '#dc2626', fontWeight: '700' }}>{formatTime(a.outTime)}</td>
+                                                        <td style={{ color: '#059669', fontWeight: '700' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                {formatTime(a.inTime)}
+                                                                {isLate(a.inTime) && (
+                                                                    <span style={{ 
+                                                                        fontSize: '9px', background: '#fee2e2', color: '#ef4444', 
+                                                                        padding: '2px 6px', borderRadius: '4px', fontWeight: '900' 
+                                                                    }}>LATE</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ color: '#dc2626', fontWeight: '700' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                {formatTime(a.outTime)}
+                                                                {isEarly(a.outTime) && (
+                                                                    <span style={{ 
+                                                                        fontSize: '9px', background: '#fff7ed', color: '#f97316', 
+                                                                        padding: '2px 6px', borderRadius: '4px', fontWeight: '900' 
+                                                                    }}>EARLY</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
                                                         <td>
                                                             <span className={`ad-status-tag ${a.status === 'In' ? 'active' : 'inactive'}`} style={{ fontSize: '10px' }}>
                                                                 {a.status === 'In' ? 'PUNCHED IN' : 'PUNCHED OUT'}
