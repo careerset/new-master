@@ -143,6 +143,80 @@ function AdminActionsContent({ employee, onUpdate }) {
     );
 }
 
+function GenderDonutChart({ male, female, other }) {
+    const total = male + female + other;
+    if (total === 0) return <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No data</div>;
+
+    const malePct = (male / total) * 100;
+    const femalePct = (female / total) * 100;
+    const otherPct = (other / total) * 100;
+
+    // SVG Circle Math
+    const radius = 35;
+    const circumference = 2 * Math.PI * radius;
+    
+    const maleOffset = circumference - (malePct / 100) * circumference;
+    const femaleOffset = circumference - (femalePct / 100) * circumference;
+    const otherOffset = circumference - (otherPct / 100) * circumference;
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '30px', padding: '10px' }}>
+            <div style={{ position: 'relative', width: '100px', height: '100px' }}>
+                <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                    {/* Background Circle */}
+                    <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                    
+                    {/* Male Segment */}
+                    <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#3b82f6" strokeWidth="12"
+                        strokeDasharray={circumference} strokeDashoffset={maleOffset} strokeLinecap="round" 
+                        style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
+                    
+                    {/* Female Segment */}
+                    <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#ec4899" strokeWidth="12"
+                        strokeDasharray={circumference} strokeDashoffset={femaleOffset} strokeLinecap="round" 
+                        style={{ transition: 'stroke-dashoffset 0.5s ease', transformOrigin: 'center', transform: `rotate(${(malePct / 100) * 360}deg)` }} />
+
+                    {/* Other Segment */}
+                    {other > 0 && (
+                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#94a3b8" strokeWidth="12"
+                            strokeDasharray={circumference} strokeDashoffset={otherOffset} strokeLinecap="round" 
+                            style={{ transition: 'stroke-dashoffset 0.5s ease', transformOrigin: 'center', transform: `rotate(${((malePct + femalePct) / 100) * 360}deg)` }} />
+                    )}
+                </svg>
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>{total}</span>
+                    <p style={{ margin: 0, fontSize: '8px', color: '#64748b', textTransform: 'uppercase' }}>Total</p>
+                </div>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#3b82f6' }}></div>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>Male</span>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{Math.round(malePct)}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#ec4899' }}></div>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>Female</span>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{Math.round(femalePct)}%</span>
+                </div>
+                {other > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#94a3b8' }}></div>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>Other</span>
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{Math.round(otherPct)}%</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function ManagerDashboard() {
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -185,6 +259,58 @@ function ManagerDashboard() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [teamAttendance, setTeamAttendance] = useState([]);
     const [attFilterStatus, setAttFilterStatus] = useState("All");
+    
+    // Requests State
+    const [employeeRequests, setEmployeeRequests] = useState([]);
+    
+    const loadRequests = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${SCRIPT_URL}?action=getEmployeeRequests`);
+            const data = await res.json();
+            if (data.status === "success") {
+                setEmployeeRequests(data.requests || []);
+            } else {
+                setEmployeeRequests([
+                    { id: "REQ-001", empId: "EMP-001", name: "John Doe", type: "Leave Type", date: "2026-04-10", endDate: "2026-04-12", reason: "Family trip", status: "Pending" }
+                ]);
+            }
+        } catch(err) {
+            console.error("Error loading requests:", err);
+            setEmployeeRequests([
+                { id: "REQ-001", empId: "EMP-001", name: "John Doe", type: "Leave Type", date: "2026-04-10", endDate: "2026-04-12", reason: "Family trip", status: "Pending" }
+            ]);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    const handleUpdateReqStatus = async (reqId, newStatus) => {
+        try {
+            setLoading(true);
+            const formData = new URLSearchParams();
+            formData.append("action", "updateRequestStatus");
+            formData.append("requestId", reqId);
+            formData.append("status", newStatus);
+
+            const res = await fetch(SCRIPT_URL, { method: "POST", body: formData });
+            
+            // Optimistic update
+            setEmployeeRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: newStatus } : r));
+            
+        } catch (err) {
+            console.error("Error updating status:", err);
+            setEmployeeRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: newStatus } : r));
+        } finally {
+            setLoading(false);
+            alert(`Request marked as ${newStatus}`);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'requests') loadRequests();
+    }, [activeTab]);
+
     const navigate = useNavigate();
 
     const normalizeDept = (dept) => {
@@ -486,6 +612,10 @@ function ManagerDashboard() {
                     <div className={`mg-nav-link ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
                         <span>Attendance</span>
+                    </div>
+                    <div className={`mg-nav-link ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => { setActiveTab('requests'); setIsSidebarOpen(false); }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        <span>Approvals</span>
                     </div>
                 </div>
                 <div className="mg-nav-link mg-logout-btn" style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9' }} onClick={() => navigate("/manager-login")}>
@@ -932,6 +1062,19 @@ function ManagerDashboard() {
                     </div>
                 ) : activeTab === 'attendance' ? (
                     <div className="mg-attendance-section animate-fade-in">
+                        <div className="mg-widget-panel" style={{ background: 'white', borderRadius: '24px', padding: '30px', marginBottom: '25px' }}>
+                            <div className="mg-widget-title-area" style={{ marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Team Diversity</h3>
+                                </div>
+                            </div>
+                            <GenderDonutChart 
+                                male={employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'male').length} 
+                                female={employees.filter(e => (e.Gender || e.gender)?.toLowerCase() === 'female').length} 
+                                other={employees.filter(e => (e.Gender || e.gender) && !['male', 'female'].includes((e.Gender || e.gender).toLowerCase())).length} 
+                            />
+                        </div>
                         <div className="mg-widget-panel" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
                             <div className="mg-widget-title-area" style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1042,6 +1185,90 @@ function ManagerDashboard() {
                             </div>
                         </div>
                     </div>
+                ) : activeTab === 'requests' ? (
+                    <div className="mg-requests-section animate-fade-in">
+                        <div className="mg-widget-panel" style={{ background: 'white', borderRadius: '24px', padding: '30px' }}>
+                            <div className="mg-widget-title-area" style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                    <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Pending Approvals</h3>
+                                </div>
+                                <button className="mg-cmd-btn" onClick={loadRequests}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                    Refresh
+                                </button>
+                            </div>
+                            
+                            <div className="mg-attendance-table-wrap">
+                                <table className="mg-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Employee</th>
+                                            <th>Request Type</th>
+                                            <th>Date / Range</th>
+                                            <th>Reason</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {employeeRequests.map(req => (
+                                            <tr key={req.id || req.empId}>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        <div className="mg-mini-avatar" style={{ background: '#f8fafc', color: '#64748b' }}>
+                                                            {req.name?.charAt(0)}
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ fontWeight: '700', fontSize: '14px' }}>{req.name}</span>
+                                                            <span style={{ fontSize: '11px', color: '#64748b' }}>{req.empId}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ fontSize: '13px', fontWeight: '600' }}>
+                                                    <span style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: '8px', color: '#475569' }}>
+                                                        {req.type}
+                                                    </span>
+                                                </td>
+                                                <td style={{ fontSize: '13px' }}>
+                                                    {req.date} {req.endDate && ` to ${req.endDate}`}
+                                                </td>
+                                                <td style={{ fontSize: '13px', color: '#64748b', maxWidth: '200px' }}>
+                                                    {req.reason}
+                                                </td>
+                                                <td>
+                                                    <span style={{ 
+                                                        padding: '4px 10px', borderRadius: '6px', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase',
+                                                        background: req.status === 'Approved' ? '#ecfdf5' : req.status === 'Rejected' ? '#fef2f2' : '#fff7ed',
+                                                        color: req.status === 'Approved' ? '#10b981' : req.status === 'Rejected' ? '#ef4444' : '#f97316'
+                                                    }}>
+                                                        {req.status}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {req.status === 'Pending' ? (
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <button 
+                                                                onClick={() => handleUpdateReqStatus(req.id, "Approved")}
+                                                                style={{ background: '#10b981', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                                                            >Approve</button>
+                                                            <button 
+                                                                onClick={() => handleUpdateReqStatus(req.id, "Rejected")}
+                                                                style={{ background: '#ef4444', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                                                            >Reject</button>
+                                                        </div>
+                                                    ) : <span style={{ fontSize: '12px', color: '#94a3b8' }}>Processed</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {employeeRequests.length === 0 && (
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No requests pending.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     /* Default/Empty State */
                     <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Select a tab to view content</div>
@@ -1065,6 +1292,10 @@ function ManagerDashboard() {
                 <div className={`bottom-nav-item ${activeTab === 'books' ? 'active' : ''}`} onClick={() => setActiveTab('books')}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                     <span>HR Book</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    <span>Approval</span>
                 </div>
                 <div className="bottom-nav-item" onClick={() => setIsSidebarOpen(true)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>

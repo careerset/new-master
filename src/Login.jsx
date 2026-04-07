@@ -452,9 +452,9 @@ function EmployeeLogin() {
         <div className="login-welcome" style={{ backgroundImage: "url('/employee.jpg')", backgroundSize: "cover", backgroundPosition: "center" }}>
           {!isForgotMode ? (
             <>
-              <h1>Workforz Portal</h1>
+              <h1>Workforz</h1>
               <div className="welcome-line"></div>
-              <p>Secure access hub for all users. Log in with your credentials to reach your dashboard.</p>
+              <p></p>
             </>
           ) : (
             <>
@@ -463,7 +463,7 @@ function EmployeeLogin() {
               <p>Don't worry, it happens to the best of us. {step === 1 ? "Enter your registered email to receive an OTP." : step === 2 ? "Enter the OTP sent to your email to verify your identity." : "Set a strong new password to secure your account."}</p>
             </>
           )}
-          <button className="learn-more-btn" onClick={() => navigate("/")}>Explore Portal</button>
+          
         </div>
 
         <div className="login-form-area">

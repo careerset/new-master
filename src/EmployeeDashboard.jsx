@@ -99,6 +99,99 @@ function EmployeeDashboard() {
   const [viewDate, setViewDate] = useState(new Date());
   const [isTrailModalOpen, setIsTrailModalOpen] = useState(false);
   const [selectedTrail, setSelectedTrail] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState({ h: 0, m: 0, s: 0 });
+  
+  // Requests Form State
+  const [requestData, setRequestData] = useState({ type: "", date: "", endDate: "", reason: "" });
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [myRequests, setMyRequests] = useState([]);
+
+  const loadMyRequests = async () => {
+    try {
+      const employeeId = localStorage.getItem("employeeId");
+      const res = await fetch(`${process.env.REACT_APP_API_URL}?action=getEmployeeRequests&empId=${employeeId}`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setMyRequests(data.requests || []);
+      }
+    } catch (err) {
+      console.error("Error loading my requests:", err);
+    }
+  };
+  
+  const handleRequestSubmit = async (e) => {
+    e.preventDefault();
+    if (!requestData.type || !requestData.date || !requestData.reason) {
+      alert("Please fill all required fields.");
+      return;
+    }
+    setIsSubmittingRequest(true);
+    
+    try {
+      const employeeId = localStorage.getItem("employeeId");
+      const apiUrl = process.env.REACT_APP_API_URL;
+      
+      const submitData = new FormData();
+      submitData.append("action", "submitEmployeeRequest");
+      submitData.append("employeeId", employeeId);
+      submitData.append("requestType", requestData.type);
+      submitData.append("startDate", requestData.date);
+      submitData.append("endDate", requestData.endDate || "");
+      submitData.append("reason", requestData.reason);
+      
+      const res = await fetch(apiUrl, { method: "POST", body: submitData });
+      const data = await res.json();
+      
+      if (data.status === "success") {
+        alert("Request submitted successfully!");
+        setRequestData({ type: "", date: "", endDate: "", reason: "" });
+        loadMyRequests();
+      } else {
+        alert("Failed to submit request: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while submitting the request.");
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
+  useEffect(() => {
+    let timerId;
+    if (attendanceStatus === "Punched In" && todayPunch?.inTime) {
+      const inTimeDate = new Date(todayPunch.inTime);
+      let startTime = inTimeDate.getTime();
+      
+      // If the date parses to a very old year (like 1899 from Google Sheets time formats),
+      // we need to port its hours, minutes, and seconds over to today's date.
+      if (!isNaN(startTime)) {
+        if (inTimeDate.getFullYear() < 2000) {
+          const today = new Date();
+          today.setHours(inTimeDate.getHours(), inTimeDate.getMinutes(), inTimeDate.getSeconds(), 0);
+          startTime = today.getTime();
+        }
+
+        const updateTimer = () => {
+          const now = new Date().getTime();
+          const diff = Math.max(0, Math.floor((now - startTime) / 1000));
+          setElapsedTime({ 
+            h: Math.floor(diff / 3600), 
+            m: Math.floor((diff % 3600) / 60), 
+            s: diff % 60 
+          });
+        };
+
+        updateTimer();
+        timerId = setInterval(updateTimer, 1000);
+      }
+    } else {
+      setElapsedTime({ h: 0, m: 0, s: 0 });
+    }
+    return () => { if (timerId) clearInterval(timerId); };
+  }, [attendanceStatus, todayPunch]);
+
+  const format2D = (n) => n.toString().padStart(2, '0');
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -210,10 +303,11 @@ function EmployeeDashboard() {
   }, [API_URL]);
 
   useEffect(() => {
-    if (activeTab === 'attendance' && attendanceHistory.length === 0) {
-        fetchAttendanceHistory();
+    if (activeTab === "attendance") {
+      fetchAttendanceHistory();
+      loadMyRequests();
     }
-  }, [activeTab, attendanceHistory.length, fetchAttendanceHistory]);
+  }, [activeTab, fetchAttendanceHistory]);
 
   const proceedWithPunch = useCallback(async () => {
     const employeeId = localStorage.getItem("employeeId");
@@ -502,26 +596,45 @@ function EmployeeDashboard() {
             </div>
 
             {/* Attendance Punch Bento */}
-            <div className={`bento-item punch-bento ${attendanceStatus === "Punched In" ? "active-punch" : ""}`}>
-              <div className="bento-header">
-                <div className="bento-icon" style={{ background: attendanceStatus === "Punched In" ? "#ecfdf5" : "#fef2f2", color: attendanceStatus === "Punched In" ? "#10b981" : "#ef4444" }}>⏱️</div>
-                <div className="bento-title">Daily Attendance</div>
-              </div>
-              <div className="bento-content" style={{ textAlign: 'center', paddingTop: '10px' }}>
-                <div className={`punch-status-label ${attendanceStatus === "Punched In" ? "in" : "out"}`}>
-                  {attendanceStatus}
+            <div className={`bento-item punch-bento-modern ${attendanceStatus === "Punched In" ? "active-punch" : ""}`}>
+              <div className="punch-modern-content">
+                <div className="punch-timer-icon-wrap" style={{
+                    background: attendanceStatus === "Punched In" ? "#ecfdf5" : "#fef2f2",
+                    borderColor: attendanceStatus === "Punched In" ? "#10b981" : "#ef4444"
+                }}>
+                  <span style={{ fontSize: '32px' }}>⏱️</span>
                 </div>
-                {todayPunch && (
-                  <p className="punch-time-info">
-                  {attendanceStatus === "Punched In" ? `Shift Started: ${formatTime(todayPunch.inTime)}` : todayPunch.outTime ? `Shift Ended: ${formatTime(todayPunch.outTime)}` : "Not started yet"}
-                  </p>
-                )}
+                
+                <div className="punch-timer-boxes">
+                  <div className="time-box">
+                    <div className="time-val">{format2D(elapsedTime.h)}</div>
+                    <div className="time-lbl">Hours</div>
+                  </div>
+                  <div className="time-box">
+                    <div className="time-val">{format2D(elapsedTime.m)}</div>
+                    <div className="time-lbl">Minutes</div>
+                  </div>
+                  <div className="time-box">
+                    <div className="time-val">{format2D(elapsedTime.s)}</div>
+                    <div className="time-lbl">Seconds</div>
+                  </div>
+                </div>
+
+                <div className="punch-shift-banner">
+                  {attendanceStatus === "Punched In" && todayPunch 
+                    ? `Shift Started: ${formatTime(todayPunch.inTime)}` 
+                    : (todayPunch?.outTime ? `Shift Ended: ${formatTime(todayPunch.outTime)}` : "Not started yet")}
+                </div>
+
                 <button 
-                  className={`punch-action-btn ${attendanceStatus === "Punched In" ? "out-btn" : "in-btn"}`}
+                  className={`punch-action-btn-modern`}
+                  style={{
+                      background: attendanceStatus === "Punched In" ? '#ef4444' : '#233150'
+                  }}
                   onClick={handlePunch}
                   disabled={punchLoading}
                 >
-                  {punchLoading ? <div className="spinner mini"></div> : (attendanceStatus === "Punched In" ? "Punch Out" : "Punch In Now")}
+                  {punchLoading ? <div className="spinner mini" style={{ margin: '0 auto' }}></div> : (attendanceStatus === "Punched In" ? "Punch Out" : "Punch In Now")}
                 </button>
               </div>
             </div>
@@ -1058,6 +1171,132 @@ function EmployeeDashboard() {
                             </table>
                         </div>
                     </div>
+
+                    {/* Employee Requests Form */}
+                    <div className="glass-panel animate-fade-in" style={{ 
+                        background: 'white', borderRadius: '32px', padding: '30px', marginTop: '30px',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9'
+                    }}>
+                        <div style={{ marginBottom: '25px' }}>
+                            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '900' }}>Raise Request</h3>
+                            <p style={{ fontSize: '13px', color: '#64748b', margin: '5px 0 0 0' }}>Submit a new attendance-related request to your manager.</p>
+                        </div>
+                        <form onSubmit={handleRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>Type of Request *</label>
+                                    <select 
+                                        value={requestData.type} 
+                                        onChange={(e) => setRequestData({...requestData, type: e.target.value})}
+                                        style={{ padding: '12px 15px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', outline: 'none' }}
+                                    >
+                                        <option value="">Select Type</option>
+                                        <option value="Leave Type">Leave Type</option>
+                                        <option value="Permission">Permission</option>
+                                        <option value="Overtime">Overtime</option>
+                                        <option value="Half Day Time">Half Day Time</option>
+                                        <option value="Comp Off">Comp Off</option>
+                                        <option value="Regularization">Regularization</option>
+                                    </select>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>Start Date *</label>
+                                    <input 
+                                        type="date"
+                                        value={requestData.date}
+                                        onChange={(e) => setRequestData({...requestData, date: e.target.value})}
+                                        style={{ padding: '12px 15px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', outline: 'none' }}
+                                    />
+                                </div>
+                                {requestData.type === 'Leave Type' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>End Date (Optional)</label>
+                                        <input 
+                                            type="date"
+                                            value={requestData.endDate}
+                                            onChange={(e) => setRequestData({...requestData, endDate: e.target.value})}
+                                            style={{ padding: '12px 15px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', outline: 'none' }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>Reason / Remarks *</label>
+                                <textarea 
+                                    value={requestData.reason}
+                                    onChange={(e) => setRequestData({...requestData, reason: e.target.value})}
+                                    rows="3"
+                                    placeholder="Please provide details for your request..."
+                                    style={{ padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', outline: 'none', resize: 'vertical' }}
+                                ></textarea>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                                <button 
+                                    type="submit" 
+                                    disabled={isSubmittingRequest}
+                                    style={{ 
+                                        background: '#4f46e5', color: 'white', border: 'none', padding: '12px 25px', 
+                                        borderRadius: '12px', fontSize: '14px', fontWeight: '800', cursor: isSubmittingRequest ? 'not-allowed' : 'pointer',
+                                        opacity: isSubmittingRequest ? 0.7 : 1, transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)'
+                                    }}
+                                >
+                                    {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* My Requests History */}
+                    <div className="glass-panel animate-fade-in" style={{ 
+                        background: 'white', borderRadius: '32px', padding: '30px', marginTop: '30px',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '900' }}>My Request History</h3>
+                            <button onClick={loadMyRequests} style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>Refresh</button>
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="glass-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                        <th style={{ padding: '12px 20px' }}>Type</th>
+                                        <th>Date Range</th>
+                                        <th>Reason</th>
+                                        <th style={{ textAlign: 'right', paddingRight: '20px' }}>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {myRequests.map((req, idx) => (
+                                        <tr key={idx} style={{ background: '#f8fafc', borderRadius: '15px' }}>
+                                            <td style={{ padding: '15px 20px', borderRadius: '15px 0 0 15px' }}>
+                                                <span style={{ fontWeight: '700', color: '#1e293b' }}>{req.type}</span>
+                                            </td>
+                                            <td style={{ fontSize: '13px', color: '#64748b' }}>
+                                                {formatDate(req.date)} {req.endDate ? ` - ${formatDate(req.endDate)}` : ''}
+                                            </td>
+                                            <td style={{ fontSize: '13px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {req.reason}
+                                            </td>
+                                            <td style={{ textAlign: 'right', paddingRight: '20px', borderRadius: '0 15px 15px 0' }}>
+                                                <span style={{ 
+                                                    padding: '6px 12px', borderRadius: '10px', fontSize: '10px', fontWeight: '800',
+                                                    background: req.status?.toLowerCase() === 'approved' ? '#ecfdf5' : (req.status?.toLowerCase() === 'rejected' ? '#fef2f2' : '#fff7ed'),
+                                                    color: req.status?.toLowerCase() === 'approved' ? '#059669' : (req.status?.toLowerCase() === 'rejected' ? '#dc2626' : '#d97706')
+                                                }}>
+                                                    {req.status?.toUpperCase() || 'PENDING'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {myRequests.length === 0 && (
+                                        <tr>
+                                            <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>You haven't submitted any requests yet.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             );
         })()}
@@ -1241,8 +1480,14 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                 const checkFace = async () => {
                     if (!isMounted || !videoRef.current || hasTriggered.current) return;
                     
+                    // Skip detection if video is not ready
+                    if (videoRef.current.readyState < 2) {
+                        setTimeout(checkFace, 200);
+                        return;
+                    }
+                    
                     detectionCount++;
-                    if (detectionCount % 5 === 0 && matchStatus !== "verified") {
+                    if (detectionCount % 5 === 0 && !hasTriggered.current) {
                         setStatus("Still searching for your face... Try moving closer or improving light.");
                     }
 
@@ -1264,9 +1509,7 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                             setMatchStatus("mismatch");
                             setStatus(`Identity Mismatch (${matchScore}% match). Please look directly at the camera.`);
                         }
-                    } else if (matchStatus !== "verified") {
-                        // Keep current status unless we just verified
-                    }
+                    } 
                     
                     setTimeout(checkFace, 400);
                 };
@@ -1285,7 +1528,7 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
             isMounted = false;
             if (stream) stream.getTracks().forEach(t => t.stop());
         };
-    }, [profilePhoto, onVerified, scriptUrl, matchStatus]);
+    }, [profilePhoto, onVerified, scriptUrl]);
 
     return (
         <div className="face-verify-overlay" onClick={onClose}>

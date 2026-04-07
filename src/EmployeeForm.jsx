@@ -48,7 +48,7 @@ const DEPARTMENT_DESIGNATIONS = {
   ],
 
   "Technology": [
-    "trainee- software developer",
+    "Trainee- software developer",
     "Engineer - Software Developer",
     "Full Stack Developer",
     "Frontend Developer",

@@ -269,6 +269,80 @@ function AdminUsersContent() {
     );
 }
 
+function GenderDonutChart({ male, female, other }) {
+    const total = male + female + other;
+    if (total === 0) return <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No data</div>;
+
+    const malePct = (male / total) * 100;
+    const femalePct = (female / total) * 100;
+    const otherPct = (other / total) * 100;
+
+    // SVG Circle Math
+    const radius = 35;
+    const circumference = 2 * Math.PI * radius;
+    
+    const maleOffset = circumference - (malePct / 100) * circumference;
+    const femaleOffset = circumference - (femalePct / 100) * circumference;
+    const otherOffset = circumference - (otherPct / 100) * circumference;
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '30px', padding: '10px' }}>
+            <div style={{ position: 'relative', width: '100px', height: '100px' }}>
+                <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                    {/* Background Circle */}
+                    <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                    
+                    {/* Male Segment */}
+                    <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#3b82f6" strokeWidth="12"
+                        strokeDasharray={circumference} strokeDashoffset={maleOffset} strokeLinecap="round" 
+                        style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
+                    
+                    {/* Female Segment */}
+                    <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#ec4899" strokeWidth="12"
+                        strokeDasharray={circumference} strokeDashoffset={femaleOffset} strokeLinecap="round" 
+                        style={{ transition: 'stroke-dashoffset 0.5s ease', transformOrigin: 'center', transform: `rotate(${(malePct / 100) * 360}deg)` }} />
+
+                    {/* Other Segment */}
+                    {other > 0 && (
+                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#94a3b8" strokeWidth="12"
+                            strokeDasharray={circumference} strokeDashoffset={otherOffset} strokeLinecap="round" 
+                            style={{ transition: 'stroke-dashoffset 0.5s ease', transformOrigin: 'center', transform: `rotate(${((malePct + femalePct) / 100) * 360}deg)` }} />
+                    )}
+                </svg>
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>{total}</span>
+                    <p style={{ margin: 0, fontSize: '8px', color: '#64748b', textTransform: 'uppercase' }}>Total</p>
+                </div>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#3b82f6' }}></div>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>Male</span>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{Math.round(malePct)}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#ec4899' }}></div>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>Female</span>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{Math.round(femalePct)}%</span>
+                </div>
+                {other > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#94a3b8' }}></div>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>Other</span>
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{Math.round(otherPct)}%</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function AdminDashboard() {
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -289,6 +363,52 @@ function AdminDashboard() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [selectedTrail, setSelectedTrail] = useState(null);
     const [isTrailModalOpen, setIsTrailModalOpen] = useState(false);
+
+    // Requests State
+    const [employeeRequests, setEmployeeRequests] = useState([]);
+
+    const loadRequests = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${SCRIPT_URL}?action=getEmployeeRequests`);
+            const data = await res.json();
+            if (data.status === "success") {
+                setEmployeeRequests(data.requests || []);
+            }
+        } catch (err) {
+            console.error("Error loading requests:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateReqStatus = async (reqId, newStatus) => {
+        try {
+            setLoading(true);
+            const formData = new URLSearchParams();
+            formData.append("action", "updateRequestStatus");
+            formData.append("requestId", reqId);
+            formData.append("status", newStatus);
+
+            const res = await fetch(SCRIPT_URL, { method: "POST", body: formData });
+            const data = await res.json();
+            
+            if(data.status === "success") {
+                // Optimistic update
+                setEmployeeRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: newStatus } : r));
+                alert(`Request marked as ${newStatus}`);
+            }
+        } catch (err) {
+            console.error("Error updating status:", err);
+            alert("Failed to update status");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'requests') loadRequests();
+    }, [activeTab]);
 
     const loadEmployeeTrail = async (empId, date) => {
         try {
@@ -534,6 +654,10 @@ function AdminDashboard() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
                         <span>Global Attendance</span>
                     </div>
+                    <div className={`ad-nav-link ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => { setActiveTab('requests'); setIsSidebarOpen(false); }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <span>Approvals</span>
+                    </div>
                 </div>
                 <div className="ad-nav-link ad-logout-btn" onClick={() => navigate("/admin-login")}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -569,10 +693,13 @@ function AdminDashboard() {
                             <div className="ad-widget-panel">
                                 <div className="ad-widget-title">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                                    <h4>Gender Spread</h4>
+                                    <h4>Gender Diversity</h4>
                                 </div>
-                                <DistributionBar label="Male" count={employees.filter(e => e.Gender?.toLowerCase() === 'male').length} total={stats.total} color="#3b82f6" />
-                                <DistributionBar label="Female" count={employees.filter(e => e.Gender?.toLowerCase() === 'female').length} total={stats.total} color="#ec4899" />
+                                <GenderDonutChart 
+                                    male={employees.filter(e => e.Gender?.toLowerCase() === 'male').length} 
+                                    female={employees.filter(e => e.Gender?.toLowerCase() === 'female').length} 
+                                    other={employees.filter(e => e.Gender && !['male', 'female'].includes(e.Gender.toLowerCase())).length} 
+                                />
                             </div>
                             <div className="ad-widget-panel">
                                 <div className="ad-widget-title">
@@ -756,6 +883,89 @@ function AdminDashboard() {
                             </div>
                         </div>
                     </div>
+                ) : activeTab === 'requests' ? (
+                    /* General Approvals Tab Content */
+                    <div className="ad-attendance-panel animate-fade-in">
+                        <div style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Pending Approvals</h2>
+                            <button className="ad-primary-action-btn" onClick={loadRequests}>Refresh Requests</button>
+                        </div>
+
+                        <div className="ad-widget-panel" style={{ padding: '0', borderRadius: '16px', overflow: 'hidden', background: 'white' }}>
+                            <div className="ad-table-wrapper" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                <table className="mg-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{ background: '#f8fafc' }}>Employee</th>
+                                            <th style={{ background: '#f8fafc' }}>Type</th>
+                                            <th style={{ background: '#f8fafc' }}>Duration</th>
+                                            <th style={{ background: '#f8fafc' }}>Reason</th>
+                                            <th style={{ background: '#f8fafc' }}>Status</th>
+                                            <th style={{ background: '#f8fafc', textAlign: 'right' }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {employeeRequests.map((req, i) => (
+                                            <tr key={i}>
+                                                <td>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span style={{ fontWeight: '700', color: '#0f172a' }}>{req.name}</span>
+                                                        <span style={{ fontSize: '11px', color: '#64748b' }}>{req.empId}</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span style={{ 
+                                                        fontSize: '11px', fontWeight: '700', color: '#6366f1', 
+                                                        background: 'rgba(99, 102, 241, 0.1)', padding: '4px 8px', borderRadius: '6px' 
+                                                    }}>
+                                                        {req.type?.toUpperCase()}
+                                                    </span>
+                                                </td>
+                                                <td style={{ fontSize: '13px', color: '#1e293b' }}>
+                                                    {formatDate(req.date)} {req.endDate ? ` to ${formatDate(req.endDate)}` : ''}
+                                                </td>
+                                                <td style={{ fontSize: '13px', color: '#64748b', maxWidth: '200px' }}>
+                                                    {req.reason}
+                                                </td>
+                                                <td>
+                                                    <span className={`ad-status-tag ${req.status?.toLowerCase() === 'approved' ? 'active' : (req.status?.toLowerCase() === 'pending' ? 'pip' : 'inactive')}`} style={{ fontSize: '10px' }}>
+                                                        {req.status?.toUpperCase() || 'PENDING'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    {req.status?.toLowerCase() === 'pending' && (
+                                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                            <button 
+                                                                onClick={() => handleUpdateReqStatus(req.id, 'Approved')}
+                                                                style={{ 
+                                                                    background: '#10b981', color: 'white', border: 'none', 
+                                                                    padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '700'
+                                                                }}
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleUpdateReqStatus(req.id, 'Rejected')}
+                                                                style={{ 
+                                                                    background: '#ef4444', color: 'white', border: 'none', 
+                                                                    padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '700'
+                                                                }}
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {employeeRequests.length === 0 && (
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No pending requests found.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     /* HR Book Tab Content */
                     <div className="animate-fade-in">
@@ -829,6 +1039,10 @@ function AdminDashboard() {
                 <div className={`bottom-nav-item ${activeTab === 'access' ? 'active' : ''}`} onClick={() => setActiveTab('access')}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                     <span>Access</span>
+                </div>
+                <div className={`bottom-nav-item ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    <span>Approvals</span>
                 </div>
                 <div className="bottom-nav-item" onClick={() => setIsSidebarOpen(true)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
