@@ -26,6 +26,9 @@ window.JSZip = JSZip;
 const SCRIPT_URL = process.env.REACT_APP_API_URL;
 
 let MODELS_LOADED = false;
+let CACHED_PROFILE_DESCRIPTOR = null; // Caches the employee's registered face features
+let PRE_FETCHED_LOCATION = null; // Background location state
+
 
 const formatDate = (dateString) => {
   if (!dateString) return "-";
@@ -98,6 +101,38 @@ function EmployeeDashboard() {
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
   const [isTrailModalOpen, setIsTrailModalOpen] = useState(false);
+
+  // Pre-load Face API Models in background
+  useEffect(() => {
+    async function loadModels() {
+      if (!MODELS_LOADED) {
+        try {
+          await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+          await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+          await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+          MODELS_LOADED = true;
+          console.log("Biometric models pre-loaded successfully.");
+        } catch (err) {
+          console.warn("Background model load failed, will retry on use.", err);
+        }
+      }
+    }
+    loadModels();
+  }, []);
+
+  // Pre-fetch Location when moving to attendance tab
+  useEffect(() => {
+    if (activeTab === "attendance" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          PRE_FETCHED_LOCATION = `${pos.coords.latitude},${pos.coords.longitude}`;
+          console.log("Location pre-fetched for punch.");
+        },
+        null,
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, [activeTab]);
   const [selectedTrail, setSelectedTrail] = useState(null);
   const [elapsedTime, setElapsedTime] = useState({ h: 0, m: 0, s: 0 });
   
@@ -322,17 +357,17 @@ function EmployeeDashboard() {
         formData.append("empId", employeeId);
         formData.append("status", newStatus);
         
-        if (navigator.geolocation) {
-            await new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        formData.append("location", `${pos.coords.latitude},${pos.coords.longitude}`);
-                        resolve();
-                    },
-                    () => resolve()
-                );
-            });
+        let location = PRE_FETCHED_LOCATION;
+        if (!location && navigator.geolocation) {
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000 });
+                });
+                location = `${pos.coords.latitude},${pos.coords.longitude}`;
+            } catch (e) { console.warn("Punch-time geo fetch timed out."); }
         }
+        
+        if (location) formData.append("location", location);
 
         const res = await fetch(API_URL, {
             method: "POST",
@@ -1428,47 +1463,38 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                 stream = await navigator.mediaDevices.getUserMedia({ video: {} });
                 if (videoRef.current) videoRef.current.srcObject = stream;
 
-                // 3. Process Profile Photo to get Descriptor
-                setStatus("Extracting Registered Features...");
-                
-                let photoImg;
-                try {
-                    const res = await fetch(profilePhoto);
-                    if (!res.ok) throw new Error("Direct fetch status: " + res.status);
-                    const blob = await res.blob();
-                    photoImg = await faceapi.bufferToImage(blob);
-                } catch (err) {
-                    console.warn("Direct profile photo fetch failed, trying proxy...", err);
-                    
-                    const driveIdMatch = profilePhoto.match(/[-\w]{25,}/);
-                    const fileId = profilePhoto.includes('id=') ? profilePhoto.split('id=')[1] : (driveIdMatch ? driveIdMatch[0] : null);
-                    
-                    if (!fileId) throw new Error("Could not find a valid photo ID to load.");
+                const profileDetection = await (async () => {
+                   if (CACHED_PROFILE_DESCRIPTOR) return { descriptor: CACHED_PROFILE_DESCRIPTOR };
+                   
+                   setStatus("Extracting Registered Features...");
+                   let photoImg;
+                   try {
+                       const res = await fetch(profilePhoto);
+                       if (!res.ok) throw new Error("Direct fetch status: " + res.status);
+                       const blob = await res.blob();
+                       photoImg = await faceapi.bufferToImage(blob);
+                   } catch (err) {
+                       const driveIdMatch = profilePhoto.match(/[-\w]{25,}/);
+                       const fileId = profilePhoto.includes('id=') ? profilePhoto.split('id=')[1] : (driveIdMatch ? driveIdMatch[0] : null);
+                       if (!fileId) throw new Error("Invalid photo ID.");
+                       const proxyRes = await fetch(`${scriptUrl}?action=proxyFile&fileId=${fileId}`);
+                       const proxyData = await proxyRes.json();
+                       if (proxyData.status === "success") {
+                           const blob = await (await fetch(`data:${proxyData.mimeType};base64,${proxyData.base64}`)).blob();
+                           photoImg = await faceapi.bufferToImage(blob);
+                       } else throw new Error(proxyData.message);
+                   }
 
-                    const proxyRes = await fetch(`${scriptUrl}?action=proxyFile&fileId=${fileId}`);
-                    
-                    if (!proxyRes.ok) {
-                        throw new Error(`Cloud Proxy Error: ${proxyRes.status} ${proxyRes.statusText}`);
-                    }
+                   const det = await faceapi.detectSingleFace(photoImg).withFaceLandmarks().withFaceDescriptor();
+                   if (det) {
+                       CACHED_PROFILE_DESCRIPTOR = det.descriptor;
+                       return det;
+                   }
+                   return null;
+                })();
 
-                    const contentType = proxyRes.headers.get("content-type");
-                    if (!contentType || !contentType.includes("application/json")) {
-                        throw new Error("Server returned an invalid response format (HTML instead of data). Check your script deployment.");
-                    }
-
-                    const proxyData = await proxyRes.json();
-                    if (proxyData.status === "success") {
-                        const blob = await (await fetch(`data:${proxyData.mimeType};base64,${proxyData.base64}`)).blob();
-                        photoImg = await faceapi.bufferToImage(blob);
-                    } else {
-                        throw new Error(proxyData.message || "Cloud data retrieval failed.");
-                    }
-                }
-
-                // Enhanced profile descriptor extraction
-                const profileDetection = await faceapi.detectSingleFace(photoImg).withFaceLandmarks().withFaceDescriptor();
                 if (!profileDetection) {
-                    throw new Error("Face not detected in your registered profile photo. Please contact HR to update your photo.");
+                    throw new Error("Face not detected in profile photo.");
                 }
 
                 const faceMatcher = new faceapi.FaceMatcher(profileDetection.descriptor, 0.6);
@@ -1494,24 +1520,21 @@ function FaceVerifyModal({ profilePhoto, onVerified, onClose, scriptUrl }) {
                     const detections = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
                     
                     if (detections) {
-                        setStatus("Face detected! Comparing with profile...");
                         const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
-                        
                         if (bestMatch.label !== 'unknown' && !hasTriggered.current) {
                             hasTriggered.current = true;
                             setMatchStatus("verified");
                             setStatus("Identity Confirmed!");
-                            setTimeout(() => { if (isMounted) onVerified(); }, 1500);
+                            setTimeout(() => { if (isMounted) onVerified(); }, 1000);
                             return;
                         } else {
-                            // Calculate match percentage for better feedback
                             const matchScore = Math.round((1 - bestMatch.distance) * 100);
                             setMatchStatus("mismatch");
-                            setStatus(`Identity Mismatch (${matchScore}% match). Please look directly at the camera.`);
+                            setStatus(`Scanning... Align Face (${matchScore}%)`);
                         }
                     } 
                     
-                    setTimeout(checkFace, 400);
+                    setTimeout(checkFace, 150);
                 };
 
                 checkFace();
